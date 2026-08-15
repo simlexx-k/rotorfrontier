@@ -105,7 +105,7 @@ export const CONTROL_REFERENCE = [
   ["Cyclic pitch", "W / S · Left stick Y"],
   ["Cyclic roll", "A / D · Left stick X"],
   ["Anti-torque pedals", "Q / E · LB / RB"],
-  ["Collective", "Shift / Ctrl · RT / LT"],
+  ["Collective raise / lower", "Shift / Ctrl · RT / LT"],
   ["Primary weapon", "Left click / Space · A"],
   ["Secondary weapon", "Right click · B"],
   ["Cycle secondary", "R · X"],

@@ -1056,6 +1056,7 @@ kbd {
 }
 
 .aircraft-sources nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem 0.65rem; }
+.aircraft-credit-stack { display: grid; gap: 0.2rem; }
 .aircraft-sources a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid rgba(104, 224, 211, 0.35); }
 .aircraft-sources a:hover { color: var(--lime); border-color: var(--lime); }
 

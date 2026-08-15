@@ -8,7 +8,11 @@ import {
   upgradeCost,
 } from "../app/game/CareerStore.ts";
 import { ACTIVE_AIRCRAFT, DEFAULT_SETTINGS, MISSIONS } from "../app/game/config.ts";
-import { FlightModel } from "../app/game/FlightModel.ts";
+import {
+  FLIGHT_GROUND_CLEARANCE_METRES,
+  FlightModel,
+} from "../app/game/FlightModel.ts";
+import { mapDeviceCyclic, mapDigitalCyclic } from "../app/game/InputManager.ts";
 import { MissionDirector } from "../app/game/MissionDirector.ts";
 import {
   decodeTerrainRgbHeight,
@@ -17,6 +21,25 @@ import {
   metresPerPixelAtLatitude,
   NAIROBI_THEATRE,
 } from "../app/game/RealTerrain.ts";
+
+const controls = (overrides = {}) => ({
+  pitch: 0,
+  roll: 0,
+  yaw: 0,
+  collective: 0,
+  lookX: 0,
+  lookY: 0,
+  firePrimary: false,
+  fireSecondary: false,
+  device: "keyboard-mouse",
+  ...overrides,
+});
+
+const simulate = (model, seconds, frame, ground = 1_700) => {
+  for (let step = 0; step < seconds * 60; step += 1) {
+    model.step(1 / 60, frame, ground, Vector3.Zero());
+  }
+};
 
 test("AH-64E dossier retains sourced specifications and attribution", () => {
   assert.equal(ACTIVE_AIRCRAFT.designation, "AH-64E");
@@ -30,6 +53,14 @@ test("AH-64E dossier retains sourced specifications and attribution", () => {
 test("default operation launches in clear daylight", () => {
   assert.equal(MISSIONS[0].weather, "clear");
   assert.ok(MISSIONS[0].timeOfDay >= 10 && MISSIONS[0].timeOfDay <= 15);
+});
+
+test("keyboard, mouse and gamepad cyclic axes map to aircraft-relative motion", () => {
+  assert.deepEqual(mapDigitalCyclic(true, false, false, false), { pitch: 1, roll: 0 });
+  assert.deepEqual(mapDigitalCyclic(false, true, false, false), { pitch: -1, roll: 0 });
+  assert.deepEqual(mapDigitalCyclic(false, false, false, true), { pitch: 0, roll: -1 });
+  assert.deepEqual(mapDeviceCyclic(0.8, -0.6, false), { pitch: 0.6, roll: -0.8 });
+  assert.deepEqual(mapDeviceCyclic(0.8, -0.6, true), { pitch: -0.6, roll: -0.8 });
 });
 
 test("Nairobi real terrain is the token-free default and decodes provider elevations", () => {
@@ -122,4 +153,78 @@ test("hard landings cause component damage", () => {
   }, 0, Vector3.Zero());
   assert.equal(result.hardLanding, true);
   assert.ok(model.hull < 100);
+});
+
+test("aircraft starts settled on Nairobi ground without sinking or taking damage", () => {
+  const ground = 1_700;
+  const model = new FlightModel(DEFAULT_SETTINGS);
+  model.position.set(0, ground + FLIGHT_GROUND_CLEARANCE_METRES, 120);
+  simulate(model, 5, controls(), ground);
+  assert.ok(
+    model.position.y >= ground + FLIGHT_GROUND_CLEARANCE_METRES,
+    "skids must remain above terrain",
+  );
+  assert.ok(Math.abs(model.velocity.y) < 0.001, "neutral aircraft should remain settled");
+  assert.equal(model.hull, 100);
+  assert.equal(model.engine, 100);
+});
+
+test("collective authority lifts the aircraft from Nairobi elevation", () => {
+  const ground = 1_700;
+  const model = new FlightModel(DEFAULT_SETTINGS);
+  model.position.set(0, ground + FLIGHT_GROUND_CLEARANCE_METRES, 120);
+  simulate(model, 0.25, controls({ collective: 1 }), ground);
+  simulate(model, 1.5, controls(), ground);
+  assert.ok(
+    model.position.y > ground + FLIGHT_GROUND_CLEARANCE_METRES + 1.5,
+    "holding Shift or RT should produce a positive climb",
+  );
+  assert.ok(model.velocity.y > 0);
+});
+
+test("assisted cyclic produces forward, backward and right translation", () => {
+  const ground = 1_700;
+  const createAirborne = () => {
+    const model = new FlightModel(DEFAULT_SETTINGS);
+    model.position.set(0, ground + 12, 120);
+    model.collective = 0.64;
+    model.rotorRpm = 1;
+    model.step(1 / 60, controls(), ground, Vector3.Zero());
+    return model;
+  };
+
+  const forwardModel = createAirborne();
+  const forwardStart = forwardModel.position.clone();
+  const forward = Vector3.Forward().applyRotationQuaternion(forwardModel.rotation);
+  simulate(forwardModel, 2, controls(mapDigitalCyclic(true, false, false, false)), ground);
+  assert.ok(Vector3.Dot(forwardModel.position.subtract(forwardStart), forward) > 4);
+
+  const backwardModel = createAirborne();
+  const backwardStart = backwardModel.position.clone();
+  const backward = Vector3.Forward().applyRotationQuaternion(backwardModel.rotation);
+  simulate(backwardModel, 2, controls(mapDigitalCyclic(false, true, false, false)), ground);
+  assert.ok(Vector3.Dot(backwardModel.position.subtract(backwardStart), backward) < -4);
+
+  const rightModel = createAirborne();
+  const rightStart = rightModel.position.clone();
+  const right = Vector3.Right().applyRotationQuaternion(rightModel.rotation);
+  simulate(rightModel, 2, controls(mapDigitalCyclic(false, false, false, true)), ground);
+  assert.ok(Vector3.Dot(rightModel.position.subtract(rightStart), right) > 4);
+});
+
+test("terrain sampler prevents penetration while crossing rising ground", () => {
+  const terrain = (x) => 1_700 + Math.max(0, x) * 1.25;
+  const model = new FlightModel(DEFAULT_SETTINGS);
+  model.position.set(0, terrain(0) + 28, 0);
+  model.velocity.set(42, -34, 0);
+  model.collective = 0.08;
+
+  for (let step = 0; step < 180; step += 1) {
+    model.step(1 / 60, controls(), terrain, Vector3.Zero());
+    assert.ok(
+      model.position.y >=
+        terrain(model.position.x) + FLIGHT_GROUND_CLEARANCE_METRES - 0.000_001,
+      "aircraft root must never cross the terrain surface",
+    );
+  }
 });

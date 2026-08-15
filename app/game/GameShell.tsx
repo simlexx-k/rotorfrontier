@@ -192,7 +192,7 @@ export default function GameShell() {
       runtimeRef.current = runtime;
       await runtime.initialize();
       setPhase("playing");
-      pushNotice(`${mission.callsign} · flight systems online`);
+      pushNotice("On skids · hold Shift or RT to raise collective");
       void canvas.requestPointerLock();
     } catch {
       runtimeRef.current?.dispose();
@@ -449,7 +449,7 @@ export default function GameShell() {
           <div className="modal">
             <p className="eyebrow">Simulation suspended</p>
             <h2 className="pause-title">Paused</h2>
-            <p className="modal-copy">Flight state, AI and weapons are frozen. Your controller and procedural audio resume with the simulation.</p>
+            <p className="modal-copy">Flight state, AI, weapons and the sampled rotor audio are frozen. All systems resume with the simulation.</p>
             <div className="menu-actions">
               <button className="primary-action" onClick={() => runtimeRef.current?.setPaused(false)}>Resume flight</button>
               <button className="secondary-action" onClick={returnToMenu}>Abort to briefing</button>
@@ -483,7 +483,9 @@ export default function GameShell() {
           <p className="modal-copy">
             Click the flight view to capture the mouse. Xbox, PlayStation and
             standard-layout controllers are detected automatically, with radial
-            deadzone filtering and supported haptic feedback.
+            deadzone filtering and supported haptic feedback. The aircraft starts
+            settled on the Nairobi helipad: hold Shift or RT to raise collective
+            through liftoff, release it to hold the setting, and use Ctrl or LT to lower it.
           </p>
           <div className="controls-grid">
             {CONTROL_REFERENCE.map(([label, binding]) => (
@@ -538,11 +540,18 @@ export default function GameShell() {
             </div>
 
             <footer className="aircraft-sources">
-              <span>
-                3D model by <a href={ACTIVE_AIRCRAFT.modelCredit.href} target="_blank" rel="noreferrer">{ACTIVE_AIRCRAFT.modelCredit.creator}</a>
-                {" · "}<a href={ACTIVE_AIRCRAFT.modelCredit.licenseHref} target="_blank" rel="noreferrer">{ACTIVE_AIRCRAFT.modelCredit.license}</a>
-                {" · Optimized and adapted for RotorFrontier"}
-              </span>
+              <div className="aircraft-credit-stack">
+                <span>
+                  3D model by <a href={ACTIVE_AIRCRAFT.modelCredit.href} target="_blank" rel="noreferrer">{ACTIVE_AIRCRAFT.modelCredit.creator}</a>
+                  {" · "}<a href={ACTIVE_AIRCRAFT.modelCredit.licenseHref} target="_blank" rel="noreferrer">{ACTIVE_AIRCRAFT.modelCredit.license}</a>
+                  {" · Optimized and adapted for RotorFrontier"}
+                </span>
+                <span>
+                  Audio: <a href="https://freesound.org/people/qubodup/sounds/187681/" target="_blank" rel="noreferrer">rotor · qubodup · CC0</a>
+                  {" · "}<a href="https://opengameart.org/content/collection-gun-sounds" target="_blank" rel="noreferrer">cannon · AVW · CC BY 3.0</a>
+                  {" · "}<a href="https://opengameart.org/content/rocket-launch" target="_blank" rel="noreferrer">rocket · qubodup · CC0</a>
+                </span>
+              </div>
               <nav aria-label="Aircraft specification sources">
                 {ACTIVE_AIRCRAFT.sources.map((source) => <a href={source.href} target="_blank" rel="noreferrer" key={source.href}>{source.label}</a>)}
               </nav>

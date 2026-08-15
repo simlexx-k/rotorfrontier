@@ -22,6 +22,7 @@ test("optimized AH-64E model and attribution ship together", async () => {
   assert.equal(document.materials.length, 32);
   assert.ok(document.extensionsRequired.includes("EXT_texture_webp"));
   assert.ok(document.meshes.some((mesh) => mesh.name.startsWith("mesh_640_")));
+  assert.ok(document.meshes.some((mesh) => mesh.name.startsWith("mesh_449_")));
 
   const lod = await readFile("public/models/ah-64e-guardian-lod.glb");
   assert.equal(lod.toString("ascii", 0, 4), "glTF");
@@ -30,4 +31,31 @@ test("optimized AH-64E model and attribution ship together", async () => {
   assert.equal(lodDocument.meshes.length, 250);
   assert.equal(lodDocument.materials.length, 32);
   assert.ok(lodDocument.meshes.some((mesh) => mesh.name.startsWith("mesh_640_")));
+  assert.ok(lodDocument.meshes.some((mesh) => mesh.name.startsWith("mesh_449_")));
+});
+
+test("Apache orientation and real blade animation replace rotor discs", async () => {
+  const source = await readFile("app/game/AircraftFactory.ts", "utf8");
+  assert.match(source, /APACHE_SOURCE_TO_FORWARD_YAW = Math\.PI \/ 2/);
+  assert.match(source, /mesh_639_/);
+  assert.match(source, /mesh_449_/);
+  assert.doesNotMatch(source, /main-rotor-blur/);
+  assert.doesNotMatch(source, /rotor-tip-ring/);
+  assert.doesNotMatch(source, /tail-rotor-blur/);
+});
+
+test("licensed sampled helicopter and weapon audio ships with attribution", async () => {
+  const rotor = await stat("public/audio/ah64-rotor-loop.mp3");
+  const cannon = await stat("public/audio/m230-cannon.mp3");
+  const rocket = await stat("public/audio/rocket-launch.mp3");
+  assert.ok(rotor.size > 70_000 && rotor.size < 150_000);
+  assert.ok(cannon.size > 8_000 && cannon.size < 30_000);
+  assert.ok(rocket.size > 40_000 && rocket.size < 100_000);
+
+  const attribution = await readFile("docs/ASSET_LICENSES.md", "utf8");
+  assert.match(attribution, /Helicopter Rotor Loop/i);
+  assert.match(attribution, /A collection of gun sounds/i);
+  assert.match(attribution, /Rocket launch/i);
+  assert.match(attribution, /CC BY 3\.0/);
+  assert.match(attribution, /CC0/);
 });

@@ -12,7 +12,7 @@ flowchart TD
   Runtime --> Combat[Combat and damage]
   Runtime --> Director[Mission director]
   Runtime --> Input[Unified input]
-  Runtime --> Audio[Procedural audio]
+  Runtime --> Audio[Sampled and modeled audio]
   Runtime --> Net[WebRTC co-op]
   Shell --> Career[IndexedDB career]
   Combat --> AI[Aircraft and ground AI]
@@ -38,9 +38,9 @@ The custom flight model integrates:
 - collective-dependent rotor lift and rotor-RPM energy;
 - cyclic and anti-torque angular rates;
 - density, translational-lift, and near-ground multipliers;
-- quadratic air drag, wind coupling, gravity, and forward thrust;
+- quadratic air drag, wind coupling, gravity, and rotor-disc tilt translation;
 - terrain contact, impact energy, airframe damage, and power degradation;
-- optional attitude-rate damping for an accessible hybrid-realism mode.
+- optional angle-command stability assistance for an accessible hybrid-realism mode.
 
 This is a game flight model, not a certified engineering simulator. Coefficients are
 tuned for readable handling and mission pacing while preserving important control
@@ -74,10 +74,21 @@ The player airframe uses asynchronously loaded, web-optimized GLBs. High quality
 loads the 15.15 MB presentation asset, while low quality loads a 7.19 MB performance
 LOD instead of reverting to the old primitive model. Imported bounds are normalized
 to the AH-64E's published rotor diameter, attached to the simulation root, and
-supplemented with rotor-motion meshes. The procedural airframe now appears only after
-an asset-load failure, so every normal quality tier presents an Apache. The same high
-detail asset powers an isolated interactive Babylon scene in the hangar. Asset
+animated by re-parenting the source model's blade meshes around measured main and tail
+rotor hubs. No synthetic rotor discs are rendered. The procedural airframe now appears
+only after an asset-load failure, so every normal quality tier presents an Apache. The
+same high-detail asset powers an isolated interactive Babylon scene in the hangar. Asset
 authorship, license, and transformations are recorded in `docs/ASSET_LICENSES.md`.
+
+## Audio
+
+Three compact licensed samples provide the rotor, M230 cannon, and rocket-launch
+foundation. `AudioSystem` fetches and decodes them after the launch gesture, then
+routes all voices through a master dynamics compressor. Rotor pitch, filtering, and
+gain respond continuously to RPM, collective, and airspeed. Weapon voices use timed
+gain envelopes, randomized pitch where appropriate, and procedural low-frequency
+layers. Impact and explosion synthesis is retained, and every sampled voice has a
+procedural fallback if loading or decoding fails.
 
 ## AI and combat
 

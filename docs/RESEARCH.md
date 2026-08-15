@@ -69,7 +69,9 @@ used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The source
 1K GLB was simplified, pruned, deduplicated, texture-resized, and converted to WebP
 for browser delivery. The resulting 15.15 MB asset retains 32 PBR materials while
 cutting the original download by about 78 percent. The runtime scales it against
-the published 14.6 m rotor diameter and adds lightweight rotor-motion effects.
+the published 14.6 m rotor diameter. The source model's four main-rotor blades and
+four tail-rotor blades are re-parented around measured hubs and animated directly;
+no opaque rotor discs or oversized tip rings are added.
 
 Decision: load the full asset asynchronously on the high-quality tier and a separately
 optimized Apache LOD on the low-quality tier. The procedural helicopter remains only
@@ -108,16 +110,28 @@ signaling avoids collecting identity or running a signaling service in milestone
 ## Persistence, audio, and installability
 
 IndexedDB supports asynchronous structured client storage. Web Audio supports
-precisely timed procedural sources and filtering. Service workers provide an
-origin-scoped cache and offline request handling.
+decoded sample buffers, precisely timed sources, playback-rate control, filtering,
+gain envelopes, synthesis, and dynamic-range compression. Service workers provide
+an origin-scoped cache and offline request handling.
 
 - [MDN IndexedDB API](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
 - [MDN Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
+- [MDN `decodeAudioData`](https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/decodeAudioData)
+- [MDN `AudioBufferSourceNode`](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode)
+- [MDN `DynamicsCompressorNode`](https://developer.mozilla.org/en-US/docs/Web/API/DynamicsCompressorNode)
 - [MDN Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
+- [Freesound: Helicopter Rotor Loop by qubodup (CC0)](https://freesound.org/people/qubodup/sounds/187681/)
+- [OpenGameArt: A collection of gun sounds by AVW (CC BY 3.0)](https://opengameart.org/content/collection-gun-sounds)
+- [OpenGameArt: Rocket launch by qubodup (CC0)](https://opengameart.org/content/rocket-launch)
 
-Decision: save a versioned, validated career locally; synthesize rotor, cannon,
-rocket, impact, and explosion layers at runtime; cache the application shell using a
-network-first strategy so updates win when connected.
+Decision: save a versioned, validated career locally; use compact licensed recordings
+as the rotor, cannon, and launcher foundation; and retain synthesis for turbine,
+pressure, impact, and explosion layers. Rotor playback rate and filters follow RPM,
+collective, and airspeed. Cannon shots receive pitch variation and a timed envelope;
+Hydra and Hellfire launches use different playback and duration profiles. A master
+compressor protects headroom during sustained fire. If a recording fails to decode,
+the procedural layers remain a graceful fallback. Cache the application shell using
+a network-first strategy so updates win when connected.
 
 ## Performance and quality targets
 

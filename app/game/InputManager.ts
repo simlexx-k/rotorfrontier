@@ -11,6 +11,21 @@ const radialDeadzone = (x: number, y: number, zone: number): [number, number] =>
   return [(x / magnitude) * normalized, (y / magnitude) * normalized];
 };
 
+export const mapDigitalCyclic = (
+  forward: boolean,
+  backward: boolean,
+  left: boolean,
+  right: boolean,
+) => ({
+  pitch: Number(forward) - Number(backward),
+  roll: Number(left) - Number(right),
+});
+
+export const mapDeviceCyclic = (horizontal: number, vertical: number, invertY: boolean) => ({
+  pitch: clamp(vertical * (invertY ? 1 : -1)),
+  roll: clamp(-horizontal),
+});
+
 export class InputManager {
   private readonly keys = new Set<string>();
   private readonly mouseButtons = new Set<number>();
@@ -41,8 +56,14 @@ export class InputManager {
   read(): ControlFrame {
     const gamepad = this.getGamepad();
     const zone = this.settings.controllerDeadzone;
-    let pitch = (this.down("KeyS") ? 1 : 0) - (this.down("KeyW") ? 1 : 0);
-    let roll = (this.down("KeyD") ? 1 : 0) - (this.down("KeyA") ? 1 : 0);
+    const keyboardCyclic = mapDigitalCyclic(
+      this.down("KeyW"),
+      this.down("KeyS"),
+      this.down("KeyA"),
+      this.down("KeyD"),
+    );
+    let pitch = keyboardCyclic.pitch;
+    let roll = keyboardCyclic.roll;
     let yaw = (this.down("KeyE") ? 1 : 0) - (this.down("KeyQ") ? 1 : 0);
     let collective = (this.down("ShiftLeft") || this.down("ShiftRight") ? 1 : 0) - (this.down("ControlLeft") || this.down("ControlRight") ? 1 : 0);
     let lookX = 0;
@@ -52,8 +73,13 @@ export class InputManager {
 
     if (document.pointerLockElement === this.canvas) {
       const scale = this.settings.mouseSensitivity * 0.018;
-      roll = clamp(roll + this.mouseDeltaX * scale);
-      pitch = clamp(pitch + this.mouseDeltaY * scale * (this.settings.invertY ? -1 : 1));
+      const pointerCyclic = mapDeviceCyclic(
+        this.mouseDeltaX * scale,
+        this.mouseDeltaY * scale,
+        this.settings.invertY,
+      );
+      roll = clamp(roll + pointerCyclic.roll);
+      pitch = clamp(pitch + pointerCyclic.pitch);
       if (Math.abs(this.mouseDeltaX) + Math.abs(this.mouseDeltaY) > 0.1) this.lastDevice = "keyboard-mouse";
     }
 
@@ -67,8 +93,9 @@ export class InputManager {
 
       if (padActive) {
         this.lastDevice = "gamepad";
-        roll = leftX;
-        pitch = leftY * (this.settings.invertY ? -1 : 1);
+        const stickCyclic = mapDeviceCyclic(leftX, leftY, this.settings.invertY);
+        roll = stickCyclic.roll;
+        pitch = stickCyclic.pitch;
         yaw = (gamepad.buttons[5]?.value ?? 0) - (gamepad.buttons[4]?.value ?? 0);
         collective = rightTrigger - leftTrigger;
         lookX = rightX;

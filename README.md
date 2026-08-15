@@ -16,7 +16,7 @@ keyboard and mouse or a standard-layout game controller.
 ## Current feature set
 
 - A production-quality AH-64E Apache Guardian airframe with PBR materials,
-  high/performance LOD assets, animated rotor-motion effects, true-to-scale
+  high/performance LOD assets, animated source-model rotor blades, true-to-scale
   dimensions, an interactive 3D hangar viewer, and a sourced aircraft dossier
 - Custom 60 Hz fixed-step helicopter dynamics: collective, cyclic, anti-torque,
   rotor energy, translational lift, ground effect, wind, drag, fuel, component
@@ -36,7 +36,9 @@ keyboard and mouse or a standard-layout game controller.
 - Two-player WebRTC co-op using a low-latency unreliable flight-state channel and a
   reliable combat-event channel; no account or central game server required
 - Cockpit, chase, and cinematic cameras; pointer lock; adaptive WebGPU/WebGL 2
-  rendering; FXAA, bloom, dynamic quality selection, and procedural Web Audio
+  rendering; FXAA, bloom, dynamic quality selection, and compressed Web Audio
+- Licensed sampled rotor, M230 cannon, and rocket recordings with RPM/load-responsive
+  filtering, modeled turbine and low-frequency layers, and dynamic-range control
 - Keyboard/mouse and W3C Gamepad API input with radial deadzones, standard mapping,
   hot device switching, remappable sensitivity/inversion, and supported haptics
 - Installable PWA shell with network-first runtime caching and offline fallback
@@ -77,7 +79,9 @@ rendered metadata test, and deterministic career/mission/flight-model tests.
 
 Click the flight view to capture the pointer. Browser and operating-system mappings
 can vary for non-standard controllers; the settings screen provides deadzone and
-axis inversion controls.
+axis inversion controls. Operations begin on the helipad at ground idle. Hold
+`Shift` or RT to raise collective through liftoff, release to retain the setting,
+and use `Ctrl` or LT to lower collective.
 
 ## Co-op connection
 
@@ -100,7 +104,7 @@ purpose-built and deterministic at a 60 Hz fixed step; Babylon handles rendering
 scene management, spatial effects, and GPU fallback.
 
 See [Architecture](docs/ARCHITECTURE.md), [Research and design basis](docs/RESEARCH.md),
-[real-world terrain implementation](docs/REAL_WORLD_TERRAIN.md), [3D asset licenses](docs/ASSET_LICENSES.md),
+[real-world terrain implementation](docs/REAL_WORLD_TERRAIN.md), [third-party asset licenses](docs/ASSET_LICENSES.md),
 and [Testing](docs/TESTING.md) for implementation details, attribution, and tradeoffs.
 
 ## Browser baseline
@@ -122,5 +126,5 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change. Security report
 should follow [SECURITY.md](SECURITY.md). RotorFrontier is available under the
 [MIT License](LICENSE).
 
-The bundled AH-64E model is a separately licensed third-party asset. See
-[3D asset licenses](docs/ASSET_LICENSES.md) for its required attribution and terms.
+The bundled AH-64E model and sampled audio are separately licensed third-party
+assets. See [third-party asset licenses](docs/ASSET_LICENSES.md) for attribution and terms.

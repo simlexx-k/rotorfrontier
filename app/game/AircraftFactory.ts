@@ -2,12 +2,9 @@ import "@babylonjs/loaders/glTF/index.js";
 
 import {
   AbstractMesh,
-  Color3,
   Mesh,
-  MeshBuilder,
   Scene,
   SceneLoader,
-  StandardMaterial,
   TransformNode,
   Vector3,
 } from "@babylonjs/core";
@@ -17,90 +14,47 @@ import type { HelicopterVisual } from "./WorldBuilder";
 const APACHE_MODEL_PATH = "/models/ah-64e-guardian.glb";
 const APACHE_LOD_MODEL_PATH = "/models/ah-64e-guardian-lod.glb";
 const APACHE_ROTOR_DIAMETER_METRES = 14.6;
-const APACHE_SOURCE_TO_FORWARD_YAW = -Math.PI / 2;
+const APACHE_SOURCE_TO_FORWARD_YAW = Math.PI / 2;
 const APACHE_MAIN_ROTOR_MESH_PREFIXES = [
   "mesh_639_",
   "mesh_640_",
   "mesh_647_",
   "mesh_658_",
 ] as const;
+const APACHE_TAIL_ROTOR_MESH_PREFIXES = [
+  "mesh_449_",
+  "mesh_494_",
+  "mesh_556_",
+  "mesh_577_",
+] as const;
 
 export type PlayerHelicopterVisual = HelicopterVisual & {
   assetTier: "high" | "low" | "procedural";
 };
 
-const createRotorMaterial = (
-  scene: Scene,
-  name: string,
-  color: Color3,
-  alpha: number,
-) => {
-  const material = new StandardMaterial(name, scene);
-  material.diffuseColor = color;
-  material.emissiveColor = color.scale(0.2);
-  material.specularColor = Color3.Black();
-  material.alpha = alpha;
-  material.backFaceCulling = false;
-  material.disableDepthWrite = true;
-  return material;
-};
-
-const addRotorWashVisuals = (
+const addRotorMotion = (
   scene: Scene,
   root: TransformNode,
   name: string,
+  mainRotorBlades: Mesh[],
+  tailRotorBlades: Mesh[],
 ) => {
+  const mainBounds = measureMeshes(mainRotorBlades);
+  const mainHub = mainBounds.minimum.add(mainBounds.maximum).scale(0.5);
   const rotor = new TransformNode(`${name}-main-rotor-motion`, scene);
-  rotor.position.set(0, 2.62, 1.3);
+  rotor.position.copyFrom(mainHub);
   rotor.parent = root;
+  for (const blade of mainRotorBlades) blade.setParent(rotor, true);
 
-  const rotorMaterial = createRotorMaterial(
-    scene,
-    `${name}-main-rotor-blur-material`,
-    new Color3(0.16, 0.18, 0.17),
-    0.12,
-  );
-  const rotorDisc = MeshBuilder.CreateCylinder(
-    `${name}-main-rotor-blur`,
-    {
-      diameter: APACHE_ROTOR_DIAMETER_METRES,
-      height: 0.018,
-      tessellation: 96,
-    },
-    scene,
-  );
-  rotorDisc.material = rotorMaterial;
-  rotorDisc.isPickable = false;
-  rotorDisc.parent = rotor;
-
-  const tipMaterial = createRotorMaterial(
-    scene,
-    `${name}-rotor-tip-material`,
-    new Color3(0.82, 0.66, 0.16),
-    0.28,
-  );
-  const tipRing = MeshBuilder.CreateTorus(
-    `${name}-rotor-tip-ring`,
-    { diameter: 14.25, thickness: 0.025, tessellation: 96 },
-    scene,
-  );
-  tipRing.material = tipMaterial;
-  tipRing.isPickable = false;
-  tipRing.parent = rotor;
-
+  const tailBounds = measureMeshes(tailRotorBlades);
+  const tailHub = tailBounds.minimum.add(tailBounds.maximum).scale(0.5);
+  const tailMount = new TransformNode(`${name}-tail-rotor-mount`, scene);
+  tailMount.position.copyFrom(tailHub);
+  tailMount.rotation.z = -Math.PI / 2;
+  tailMount.parent = root;
   const tailRotor = new TransformNode(`${name}-tail-rotor-motion`, scene);
-  tailRotor.position.set(-1.68, 0.65, -7.23);
-  tailRotor.rotation.z = Math.PI / 2;
-  tailRotor.parent = root;
-
-  const tailDisc = MeshBuilder.CreateCylinder(
-    `${name}-tail-rotor-blur`,
-    { diameter: 2.65, height: 0.012, tessellation: 64 },
-    scene,
-  );
-  tailDisc.material = rotorMaterial;
-  tailDisc.isPickable = false;
-  tailDisc.parent = tailRotor;
+  tailRotor.parent = tailMount;
+  for (const blade of tailRotorBlades) blade.setParent(tailRotor, true);
 
   return { rotor, tailRotor };
 };
@@ -137,8 +91,9 @@ const createDetailedApache = async (
   const { minimum, maximum } = measureMeshes(imported.meshes);
   const size = maximum.subtract(minimum);
   const center = minimum.add(maximum).scale(0.5);
-  // The source airframe is longitudinal on +X and its rotor spans Z. Normalize
-  // the latter to Boeing's published diameter, then yaw the nose toward game +Z.
+  // After Babylon's glTF handedness conversion the source nose faces -X and the
+  // main rotor spans Z. Normalize that span to Boeing's published diameter, then
+  // yaw the nose toward the simulation's +Z forward axis.
   const scale = APACHE_ROTOR_DIAMETER_METRES / size.z;
 
   modelRoot.parent = centerMount;
@@ -153,13 +108,26 @@ const createDetailedApache = async (
     mesh.alwaysSelectAsActiveMesh = false;
   }
 
-  const { rotor, tailRotor } = addRotorWashVisuals(scene, root, name);
   const mainRotorBlades = imported.meshes.filter(
     (mesh): mesh is Mesh =>
       mesh instanceof Mesh &&
       APACHE_MAIN_ROTOR_MESH_PREFIXES.some((prefix) => mesh.name.startsWith(prefix)),
   );
-  for (const blade of mainRotorBlades) blade.setParent(rotor, true);
+  const tailRotorBlades = imported.meshes.filter(
+    (mesh): mesh is Mesh =>
+      mesh instanceof Mesh &&
+      APACHE_TAIL_ROTOR_MESH_PREFIXES.some((prefix) => mesh.name.startsWith(prefix)),
+  );
+  if (mainRotorBlades.length !== 4 || tailRotorBlades.length !== 4) {
+    throw new Error("AH-64E rotor blade set is incomplete");
+  }
+  const { rotor, tailRotor } = addRotorMotion(
+    scene,
+    root,
+    name,
+    mainRotorBlades,
+    tailRotorBlades,
+  );
 
   const shadowRoot = modelRoot instanceof Mesh ? [modelRoot] : imported.meshes.filter((mesh) => mesh instanceof Mesh).slice(0, 1);
 
@@ -167,7 +135,7 @@ const createDetailedApache = async (
     root,
     rotor,
     tailRotor,
-    shadowMeshes: [...shadowRoot, ...mainRotorBlades],
+    shadowMeshes: [...shadowRoot, ...mainRotorBlades, ...tailRotorBlades],
     assetTier: highDetail ? "high" : "low",
   };
 };

@@ -15,7 +15,7 @@ import { AISystem } from "./AISystem";
 import { createPlayerHelicopter, type PlayerHelicopterVisual } from "./AircraftFactory";
 import { AudioSystem } from "./AudioSystem";
 import { CombatSystem } from "./CombatSystem";
-import { FlightModel } from "./FlightModel";
+import { FLIGHT_GROUND_CLEARANCE_METRES, FlightModel } from "./FlightModel";
 import { InputManager } from "./InputManager";
 import { MissionDirector, type MissionState } from "./MissionDirector";
 import type { NetworkSession } from "./NetworkSession";
@@ -108,8 +108,8 @@ export class GameRuntime {
         this.callbacks.onNotice,
       );
       const departureElevation = terrainHeight(0, 120);
-      this.flight.position.y = departureElevation + 86;
-      this.camera.position.y = departureElevation + 95;
+      this.flight.position.y = departureElevation + FLIGHT_GROUND_CLEARANCE_METRES;
+      this.camera.position.y = departureElevation + 9.5;
       this.aircraft = await createPlayerHelicopter(
         this.scene,
         "player",
@@ -293,7 +293,7 @@ export class GameRuntime {
     const controls = this.input.read();
     this.lastInputDevice = controls.device;
     const ground = terrainHeight(this.flight.position.x, this.flight.position.z);
-    const result = this.flight.step(delta, controls, ground, this.world.wind);
+    const result = this.flight.step(delta, controls, terrainHeight, this.world.wind);
     this.aircraft.root.position.copyFrom(this.flight.position);
     this.aircraft.root.rotationQuaternion?.copyFrom(this.flight.rotation);
     this.aircraft.rotor.rotation.y += delta * (15 + this.flight.rotorRpm * 42);
@@ -308,7 +308,7 @@ export class GameRuntime {
     this.cannonCooldown -= delta;
     this.secondaryCooldown -= delta;
     if (controls.firePrimary && this.cannonCooldown <= 0) {
-      this.cannonCooldown = 0.075;
+      this.cannonCooldown = 0.096;
       if (this.combat.fireCannon(muzzle, forward, this.flight.velocity)) {
         this.audio.shot();
         void this.input.pulse(0.18, 0.38, 45);
@@ -327,7 +327,7 @@ export class GameRuntime {
       );
       if (fired) {
         this.secondaryCooldown = this.combat.selectedWeapon === "hellfire" ? 1.7 : 0.32;
-        this.audio.rocket();
+        this.audio.rocket(this.combat.selectedWeapon);
         void this.input.pulse(0.5, 0.35, 120);
         this.network?.sendEvent(
           this.combat.selectedWeapon === "hellfire" ? "missile" : "rocket",
@@ -434,7 +434,10 @@ export class GameRuntime {
     };
     return {
       altitude: this.flight.position.y * 3.28084,
-      radarAltitude: Math.max(0, (this.flight.position.y - ground - 1.7) * 3.28084),
+      radarAltitude: Math.max(
+        0,
+        (this.flight.position.y - ground - FLIGHT_GROUND_CLEARANCE_METRES) * 3.28084,
+      ),
       airspeed: this.flight.airspeed,
       verticalSpeed: this.flight.verticalSpeed,
       heading: this.flight.heading,
