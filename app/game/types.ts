@@ -19,6 +19,44 @@ export interface MissionDefinition {
   objective: string;
 }
 
+export interface AircraftDefinition {
+  id: string;
+  designation: string;
+  name: string;
+  manufacturer: string;
+  role: string;
+  crew: number;
+  dimensions: {
+    lengthMetres: number;
+    heightMetres: number;
+    rotorDiameterMetres: number;
+  };
+  weights: {
+    missionGrossKg: number;
+    maximumOperatingKg: number;
+  };
+  performance: {
+    maximumSpeedKnots: number;
+    combatRangeNm: number;
+    enduranceHours: number;
+    climbRateMpm: number;
+  };
+  propulsion: {
+    count: number;
+    model: string;
+    shaftHorsepowerEach: number;
+  };
+  armament: readonly string[];
+  systems: readonly string[];
+  sources: readonly { label: string; href: string }[];
+  modelCredit: {
+    creator: string;
+    href: string;
+    license: string;
+    licenseHref: string;
+  };
+}
+
 export interface ControlFrame {
   pitch: number;
   roll: number;

@@ -34,6 +34,33 @@ Decision: keep helicopter aerodynamics in a custom deterministic integrator whil
 using Babylon for rendering and spatial systems. Terrain is generated once per
 sortie and vegetation uses thin instances to keep draw-call count practical.
 
+## AH-64E airframe and visual asset pipeline
+
+The player aircraft is presented as the Boeing AH-64E Apache Guardian. Published
+manufacturer and service data informs the aircraft dossier: a two-person crew,
+14.7 m length, 14.6 m main-rotor diameter, 4.7 m height, 6,838 kg mission gross
+weight, 10,433 kg maximum operating weight, 164-knot maximum speed, 260-nautical-
+mile combat range, and 2.6-hour endurance. GE's T700 reference supports the twin
+T700-GE-701D powerplant identification and the 2,000-shaft-horsepower class figure.
+
+- [Boeing AH-64 Apache specifications](https://www.boeing.com/defense/military-rotorcraft/ah-64-apache)
+- [U.S. Army AH-64E performance and armament](https://www.army.mil/article/137579/ah_64e_apache_attack_helicopter)
+- [GE Aerospace T700 family](https://www.geaerospace.com/military-defense/engines/t700)
+
+The detailed 3D airframe is
+[AH-64E Apache “Guardian” by Jeyhun1985](https://sketchfab.com/3d-models/ah-64e-apache-guardian-9eb641f9179d413e87367ebd9b96347a),
+used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The source
+1K GLB was simplified, pruned, deduplicated, texture-resized, and converted to WebP
+for browser delivery. The resulting 15.15 MB asset retains 32 PBR materials while
+cutting the original download by about 78 percent. The runtime scales it against
+the published 14.6 m rotor diameter and adds lightweight rotor-motion effects.
+
+Decision: load the detailed asset asynchronously on the high-quality tier and keep
+the procedural helicopter as an immediate fallback for low-quality devices or an
+asset-load failure. Published AH-64E values provide readable context and presentation;
+the game's flight coefficients remain intentionally tuned for hybrid-realism combat
+and are not a certified or engineering-grade Apache simulation.
+
 ## Input
 
 The W3C Gamepad specification defines controller axes, buttons, standard mappings,

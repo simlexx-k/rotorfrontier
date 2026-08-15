@@ -55,6 +55,13 @@ WebGPU where available and falls back to WebGL 2. High quality enables 2K filter
 shadows, FXAA, bloom, and enhanced vegetation density; auto quality uses device
 memory and logical processor count as conservative hints.
 
+The player airframe uses an asynchronously loaded, web-optimized GLB on the high
+quality tier. Its imported bounds are normalized to the AH-64E's published rotor
+diameter, attached to the simulation root, and supplemented with inexpensive rotor
+blur meshes. Low-quality devices and asset-load failures use the existing procedural
+airframe, so a third-party model fetch cannot block a sortie. Asset authorship,
+license, and transformations are recorded in `docs/ASSET_LICENSES.md`.
+
 ## AI and combat
 
 Each hostile aircraft has a patrol phase, engagement range, desired orbit, velocity

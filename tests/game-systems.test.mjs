@@ -7,9 +7,18 @@ import {
   purchaseUpgrade,
   upgradeCost,
 } from "../app/game/CareerStore.ts";
-import { DEFAULT_SETTINGS, MISSIONS } from "../app/game/config.ts";
+import { ACTIVE_AIRCRAFT, DEFAULT_SETTINGS, MISSIONS } from "../app/game/config.ts";
 import { FlightModel } from "../app/game/FlightModel.ts";
 import { MissionDirector } from "../app/game/MissionDirector.ts";
+
+test("AH-64E dossier retains sourced specifications and attribution", () => {
+  assert.equal(ACTIVE_AIRCRAFT.designation, "AH-64E");
+  assert.equal(ACTIVE_AIRCRAFT.dimensions.rotorDiameterMetres, 14.6);
+  assert.equal(ACTIVE_AIRCRAFT.performance.maximumSpeedKnots, 164);
+  assert.equal(ACTIVE_AIRCRAFT.propulsion.model, "T700-GE-701D");
+  assert.equal(ACTIVE_AIRCRAFT.modelCredit.license, "CC BY 4.0");
+  assert.match(ACTIVE_AIRCRAFT.modelCredit.href, /sketchfab\.com/);
+});
 
 test("career upgrades are immutable and deduct the documented cost", () => {
   const upgraded = purchaseUpgrade(DEFAULT_CAREER, "engine");

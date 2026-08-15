@@ -1,4 +1,54 @@
-import type { GameSettings, MissionDefinition } from "./types";
+import type { AircraftDefinition, GameSettings, MissionDefinition } from "./types";
+
+export const ACTIVE_AIRCRAFT: AircraftDefinition = {
+  id: "ah-64e-guardian",
+  designation: "AH-64E",
+  name: "Apache Guardian",
+  manufacturer: "Boeing",
+  role: "Heavy attack helicopter",
+  crew: 2,
+  dimensions: {
+    lengthMetres: 14.7,
+    heightMetres: 4.7,
+    rotorDiameterMetres: 14.6,
+  },
+  weights: {
+    missionGrossKg: 6_838,
+    maximumOperatingKg: 10_433,
+  },
+  performance: {
+    maximumSpeedKnots: 164,
+    combatRangeNm: 260,
+    enduranceHours: 2.6,
+    climbRateMpm: 853,
+  },
+  propulsion: {
+    count: 2,
+    model: "T700-GE-701D",
+    shaftHorsepowerEach: 2_000,
+  },
+  armament: [
+    "M230 30 mm chain gun · 1,200 rounds",
+    "AGM-114 Hellfire · up to 16",
+    "Hydra 70 rockets · up to 76",
+  ],
+  systems: [
+    "TADS/PNVS target acquisition and night vision",
+    "AN/APG-78 Longbow fire-control radar",
+    "Digital glass cockpit and Link 16 interoperability",
+  ],
+  sources: [
+    { label: "Boeing specifications", href: "https://www.boeing.com/defense/military-rotorcraft/ah-64-apache" },
+    { label: "U.S. Army performance", href: "https://www.army.mil/article/137579/ah_64e_apache_attack_helicopter" },
+    { label: "GE T700 engine", href: "https://www.geaerospace.com/military-defense/engines/t700" },
+  ],
+  modelCredit: {
+    creator: "Jeyhun1985",
+    href: "https://sketchfab.com/3d-models/ah-64e-apache-guardian-9eb641f9179d413e87367ebd9b96347a",
+    license: "CC BY 4.0",
+    licenseHref: "https://creativecommons.org/licenses/by/4.0/",
+  },
+};
 
 export const MISSIONS: MissionDefinition[] = [
   {

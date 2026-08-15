@@ -9,7 +9,7 @@ import {
   saveCareer,
   upgradeCost,
 } from "./CareerStore";
-import { CONTROL_REFERENCE, DEFAULT_SETTINGS, MISSIONS } from "./config";
+import { ACTIVE_AIRCRAFT, CONTROL_REFERENCE, DEFAULT_SETTINGS, MISSIONS } from "./config";
 import type { GameRuntime } from "./GameRuntime";
 import { NetworkSession } from "./NetworkSession";
 import type {
@@ -329,6 +329,8 @@ export default function GameShell() {
                 <output>LVL {career.level}</output>
               </div>
               <div className="system-row"><span>Career credits</span><output>{career.credits.toLocaleString()} CR</output></div>
+              <div className="system-row"><span>Airframe</span><output>{ACTIVE_AIRCRAFT.designation} Guardian</output></div>
+              <div className="system-row"><span>Powerplant</span><output>2× {ACTIVE_AIRCRAFT.propulsion.model}</output></div>
               <div className="system-row"><span>Network</span><output className={`network-${networkStatus}`}>{networkStatus}</output></div>
               <div className="system-row"><span>Renderer</span><output>WebGPU / WebGL 2</output></div>
               <div className="system-row"><span>Input bus</span><output>Mouse · Keys · Gamepad</output></div>
@@ -388,6 +390,7 @@ export default function GameShell() {
             <div className="hud-bottom">
               <div className="weapon-chip">M230 · {telemetry.cannonAmmo}</div>
               <div className="weapon-chip active-weapon">{telemetry.selectedWeapon} · {secondaryAmmo}</div>
+              <div className="weapon-chip airframe-chip">{ACTIVE_AIRCRAFT.designation} · GUARDIAN</div>
               <div className="weapon-chip">K {telemetry.kills} · {telemetry.score.toLocaleString()} PTS</div>
               {telemetry.networkStatus === "connected" ? <div className="weapon-chip network-live">WINGMAN · LIVE</div> : null}
               <div className={`assist-chip ${telemetry.hoverAssist ? "active" : ""}`}>
@@ -455,7 +458,59 @@ export default function GameShell() {
       ) : null}
 
       {panel === "hangar" ? (
-        <Modal eyebrow="Persistent career" title="Hangar & upgrades" onClose={() => setPanel(null)} wide>
+        <Modal eyebrow="Airframe dossier · Persistent career" title="AH-64E Guardian Hangar" onClose={() => setPanel(null)} wide>
+          <section className="aircraft-dossier" aria-label={`${ACTIVE_AIRCRAFT.designation} ${ACTIVE_AIRCRAFT.name} specifications`}>
+            <header className="aircraft-dossier-header">
+              <div className="aircraft-roundel" aria-hidden="true"><span>64E</span></div>
+              <div>
+                <span className="aircraft-kicker">{ACTIVE_AIRCRAFT.manufacturer} · {ACTIVE_AIRCRAFT.role}</span>
+                <h3><strong>{ACTIVE_AIRCRAFT.designation}</strong> {ACTIVE_AIRCRAFT.name}</h3>
+                <p>Tandem-seat, all-weather precision attack platform with a fully modelled sensor nose, cockpit, landing gear, weapons pylons and rotor system.</p>
+              </div>
+              <span className="aircraft-readiness"><i /> Combat ready</span>
+            </header>
+
+            <div className="aircraft-dossier-grid">
+              <div className="aircraft-spec-grid">
+                <DossierMetric label="Crew" value={ACTIVE_AIRCRAFT.crew.toString()} detail="Pilot + CPG" />
+                <DossierMetric label="Maximum speed" value={`${ACTIVE_AIRCRAFT.performance.maximumSpeedKnots} kt`} detail="Combat mission" />
+                <DossierMetric label="Combat range" value={`${ACTIVE_AIRCRAFT.performance.combatRangeNm} nm`} detail="Army reference" />
+                <DossierMetric label="Endurance" value={`${ACTIVE_AIRCRAFT.performance.enduranceHours} hr`} detail="Combat profile" />
+                <DossierMetric label="Length / height" value={`${ACTIVE_AIRCRAFT.dimensions.lengthMetres} / ${ACTIVE_AIRCRAFT.dimensions.heightMetres} m`} detail="48.2 / 15.4 ft" />
+                <DossierMetric label="Rotor diameter" value={`${ACTIVE_AIRCRAFT.dimensions.rotorDiameterMetres} m`} detail="Four-blade system" />
+                <DossierMetric label="Mission gross" value={`${ACTIVE_AIRCRAFT.weights.missionGrossKg.toLocaleString()} kg`} detail="15,075 lb" />
+                <DossierMetric label="Maximum operating" value={`${ACTIVE_AIRCRAFT.weights.maximumOperatingKg.toLocaleString()} kg`} detail="23,000 lb" />
+              </div>
+
+              <div className="aircraft-systems">
+                <section>
+                  <span>Propulsion</span>
+                  <strong>{ACTIVE_AIRCRAFT.propulsion.count} × {ACTIVE_AIRCRAFT.propulsion.model}</strong>
+                  <small>{ACTIVE_AIRCRAFT.propulsion.shaftHorsepowerEach.toLocaleString()} shp each · {ACTIVE_AIRCRAFT.performance.climbRateMpm}+ m/min climb</small>
+                </section>
+                <section>
+                  <span>Standard combat load</span>
+                  <ul>{ACTIVE_AIRCRAFT.armament.map((item) => <li key={item}>{item}</li>)}</ul>
+                </section>
+                <section>
+                  <span>Mission systems</span>
+                  <ul>{ACTIVE_AIRCRAFT.systems.map((item) => <li key={item}>{item}</li>)}</ul>
+                </section>
+              </div>
+            </div>
+
+            <footer className="aircraft-sources">
+              <span>
+                3D model by <a href={ACTIVE_AIRCRAFT.modelCredit.href} target="_blank" rel="noreferrer">{ACTIVE_AIRCRAFT.modelCredit.creator}</a>
+                {" · "}<a href={ACTIVE_AIRCRAFT.modelCredit.licenseHref} target="_blank" rel="noreferrer">{ACTIVE_AIRCRAFT.modelCredit.license}</a>
+                {" · Optimized and adapted for RotorFrontier"}
+              </span>
+              <nav aria-label="Aircraft specification sources">
+                {ACTIVE_AIRCRAFT.sources.map((source) => <a href={source.href} target="_blank" rel="noreferrer" key={source.href}>{source.label}</a>)}
+              </nav>
+            </footer>
+          </section>
+
           <div className="career-banner">
             <div><span>Pilot</span><strong>{career.callsign}</strong></div>
             <div><span>Level</span><strong>{career.level}</strong></div>
@@ -622,6 +677,16 @@ function HudMetric({ label, value, unit }: { label: string; value: number; unit:
     <div className="hud-panel">
       <span className="hud-label">{label}</span>
       <strong className="hud-value">{Math.round(value)} <small>{unit}</small></strong>
+    </div>
+  );
+}
+
+function DossierMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="dossier-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
     </div>
   );
 }

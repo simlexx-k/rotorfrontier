@@ -12,6 +12,7 @@ import {
   WebGPUEngine,
 } from "@babylonjs/core";
 import { AISystem } from "./AISystem";
+import { createPlayerHelicopter } from "./AircraftFactory";
 import { AudioSystem } from "./AudioSystem";
 import { CombatSystem } from "./CombatSystem";
 import { FlightModel } from "./FlightModel";
@@ -100,14 +101,18 @@ export class GameRuntime {
       this.camera.maxZ = 16000;
       this.camera.fov = 0.92;
       this.world = new WorldBuilder(this.scene, this.mission, this.quality === "high");
-      this.aircraft = createHelicopter(this.scene, "player");
+      this.aircraft = await createPlayerHelicopter(
+        this.scene,
+        "player",
+        this.quality === "high",
+      );
       this.aircraft.root.position.copyFrom(this.flight.position);
       this.aircraft.root.rotationQuaternion = this.flight.rotation.clone();
-      for (const mesh of this.aircraft.shadowMeshes) this.world.shadow.addShadowCaster(mesh);
+      for (const mesh of this.aircraft.shadowMeshes) this.world.shadow.addShadowCaster(mesh, true);
 
       this.remoteAircraft = createHelicopter(this.scene, "wingman", new Color3(0.08, 0.22, 0.3));
       this.remoteAircraft.root.setEnabled(false);
-      for (const mesh of this.remoteAircraft.shadowMeshes) this.world.shadow.addShadowCaster(mesh);
+      for (const mesh of this.remoteAircraft.shadowMeshes) this.world.shadow.addShadowCaster(mesh, true);
 
       this.combat = new CombatSystem(
         this.scene,

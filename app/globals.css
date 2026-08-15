@@ -708,6 +708,7 @@ kbd {
 .reticle.target-locked .reticle-notch { border-color: var(--red); }
 .active-weapon { color: var(--amber); border-color: var(--amber); }
 .network-live { color: var(--cyan); border-color: var(--cyan); }
+.airframe-chip { color: var(--cyan); border-color: rgba(104, 224, 211, 0.45); }
 
 .modal { position: relative; }
 .modal-wide { width: min(68rem, 100%); }
@@ -756,6 +757,166 @@ kbd {
   color: var(--lime);
   font-size: 0.82rem;
 }
+
+.aircraft-dossier {
+  margin: 1.35rem 0 1rem;
+  border: 1px solid rgba(104, 224, 211, 0.26);
+  background:
+    linear-gradient(135deg, rgba(104, 224, 211, 0.09), transparent 42%),
+    repeating-linear-gradient(90deg, transparent 0 46px, rgba(255, 255, 255, 0.018) 46px 47px),
+    #071013;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.aircraft-dossier-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.15rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.aircraft-roundel {
+  display: grid;
+  place-items: center;
+  width: 4.4rem;
+  aspect-ratio: 1;
+  border: 1px solid var(--lime);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 0.35rem #071013, inset 0 0 0 0.42rem rgba(201, 255, 77, 0.38);
+  color: var(--lime);
+  font: 900 1rem/1 ui-monospace, monospace;
+  letter-spacing: -0.05em;
+}
+
+.aircraft-kicker,
+.aircraft-systems span,
+.dossier-metric span {
+  display: block;
+  color: var(--cyan);
+  font: 0.55rem/1.35 ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+}
+
+.aircraft-dossier-header h3 {
+  margin: 0.28rem 0 0;
+  color: var(--ink);
+  font-size: clamp(1.2rem, 3vw, 2rem);
+  text-transform: uppercase;
+  letter-spacing: -0.035em;
+}
+
+.aircraft-dossier-header h3 strong { color: var(--lime); }
+.aircraft-dossier-header p {
+  max-width: 47rem;
+  margin: 0.42rem 0 0;
+  color: var(--muted);
+  font-size: 0.67rem;
+  line-height: 1.55;
+}
+
+.aircraft-readiness {
+  align-self: start;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.38rem 0.55rem;
+  border: 1px solid rgba(201, 255, 77, 0.38);
+  color: var(--lime);
+  font: 0.54rem/1 ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.aircraft-readiness i {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 12px var(--lime);
+}
+
+.aircraft-dossier-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(17rem, 0.65fr);
+}
+
+.aircraft-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-content: start;
+  gap: 1px;
+  padding: 1px 0;
+  background: rgba(104, 224, 211, 0.12);
+}
+
+.dossier-metric {
+  min-height: 5.2rem;
+  padding: 0.8rem;
+  background: #081114;
+}
+
+.dossier-metric strong {
+  display: block;
+  margin-top: 0.42rem;
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.dossier-metric small {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font: 0.54rem/1.35 ui-monospace, monospace;
+}
+
+.aircraft-systems {
+  display: grid;
+  border-left: 1px solid var(--line);
+}
+
+.aircraft-systems section {
+  padding: 0.82rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.aircraft-systems strong,
+.aircraft-systems small {
+  display: block;
+  margin-top: 0.32rem;
+}
+
+.aircraft-systems strong { color: var(--lime); font-size: 0.72rem; }
+.aircraft-systems small { color: var(--muted); font-size: 0.57rem; }
+.aircraft-systems ul {
+  display: grid;
+  gap: 0.24rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.58rem;
+  line-height: 1.35;
+}
+
+.aircraft-systems li::before { content: "▸ "; color: var(--lime); }
+
+.aircraft-sources {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.85rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font: 0.5rem/1.5 ui-monospace, monospace;
+}
+
+.aircraft-sources nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem 0.65rem; }
+.aircraft-sources a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid rgba(104, 224, 211, 0.35); }
+.aircraft-sources a:hover { color: var(--lime); border-color: var(--lime); }
 
 .upgrade-grid {
   display: grid;
@@ -905,6 +1066,9 @@ select {
   .hud-panel { padding: 0.5rem; }
   .hud-value { font-size: 0.88rem; }
   .coop-grid { grid-template-columns: 1fr; }
+  .aircraft-dossier-grid { grid-template-columns: 1fr; }
+  .aircraft-systems { border-top: 1px solid var(--line); border-left: 0; }
+  .aircraft-spec-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 600px) {
@@ -918,11 +1082,16 @@ select {
   .weapon-chip, .assist-chip { min-width: 6rem; }
   .hud-bottom .weapon-chip:nth-child(3),
   .hud-bottom .network-live { display: none; }
+  .airframe-chip { display: none; }
   .upgrade-grid,
   .career-banner { grid-template-columns: 1fr; }
   .setting-row { grid-template-columns: 1fr; }
   .setting-row .toggle { justify-self: start; }
   .debrief-grid { grid-template-columns: repeat(2, 1fr); }
+  .aircraft-dossier-header { grid-template-columns: auto 1fr; }
+  .aircraft-readiness { grid-column: 1 / -1; justify-self: start; }
+  .aircraft-sources { flex-direction: column; }
+  .aircraft-sources nav { justify-content: flex-start; }
 }
 
 @media (prefers-reduced-motion: reduce) {
