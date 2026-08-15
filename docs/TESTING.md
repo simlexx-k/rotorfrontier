@@ -19,8 +19,9 @@ This runs:
    collective, terrain non-penetration, input-axis mapping, Nairobi XYZ/provider
    decoding, Apache rotor/orientation assets, audio delivery, attribution, the
    token-free real-terrain default, swept projectile collision, intercept solutions,
-   terrain masking, sensor dwell/lock/coast behavior, and flight-data/navigation
-   derivations.
+   terrain masking, sensor dwell/lock/coast behavior, helicopter-first automatic
+   acquisition, post-kill reacquisition, tactical contact snapshots, and
+   flight-data/navigation derivations.
 
 Lint separately with:
 
@@ -36,8 +37,8 @@ npm run lint
 | Keyboard/mouse | Pointer lock, all axes, both weapons, target, camera, pause |
 | Controllers | Xbox standard mapping, DualSense/DualShock mapping, haptics fallback |
 | Missions | All stages, victory debrief, loss debrief, score and save update |
-| Combat | Cannon/Hydra/Hellfire, ammo depletion, acquire/track/lock/mask/lost, lead cue, SAM warning |
-| Feedback | Hit/critical/kill markers, impact vignette, directional damage cue, haptics and confirm tone |
+| Combat | Cannon/Hydra/Hellfire, ammo depletion, auto helicopter lock/reacquire, manual override, acquire/track/lock/mask/lost, lead cue, SAM warning |
+| Feedback | Projectile streaks, exhaust/smoke, shockwaves, falling wreck/crash blast, radar/edge contacts, hit/critical/takedown markers, impact vignette, haptics and tones |
 | Avionics | TAS/GS split, attitude, load, torque/margin, NAV bearing/range/ETE, mission modes |
 | Career | Reload persistence, insufficient funds, max tier, stat accumulation |
 | Co-op | Host/join in two browsers, pose smoothing, weapon events, disconnect |

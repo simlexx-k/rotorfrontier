@@ -17,11 +17,14 @@ interface EnemyEntity extends CombatTarget {
   cooldown: number;
   phase: number;
   maxHealth: number;
+  wreckTime: number;
+  crashed: boolean;
 }
 
 export interface AICallbacks {
   onFire: (origin: Vector3, direction: Vector3, speed?: number, guided?: boolean) => void;
   onDestroyed: (enemy: CombatTarget) => void;
+  onCrash: (enemy: CombatTarget) => void;
 }
 
 const objectivePoints: Record<string, Vector3> = {
@@ -51,7 +54,10 @@ export class AISystem {
 
   update(delta: number, playerPosition: Vector3, playerVelocity: Vector3) {
     for (const enemy of this.enemies) {
-      if (!enemy.alive) continue;
+      if (!enemy.alive) {
+        this.updateDestroyed(enemy, delta);
+        continue;
+      }
       enemy.cooldown -= delta;
       if (enemy.kind === "helicopter") {
         this.updateHelicopter(enemy, delta, playerPosition, playerVelocity);
@@ -138,19 +144,50 @@ export class AISystem {
       velocity: Vector3.Zero(),
       alive: true,
       cooldown: 1 + Math.random() * 2,
+      wreckTime: 0,
+      crashed: false,
       maxHealth: source.health,
       applyDamage: (amount: number) => {
         if (!entity.alive) return;
         entity.health = Math.max(0, entity.health - amount);
         if (entity.health > 0) return;
         entity.alive = false;
-        entity.root.setEnabled(false);
+        entity.velocity.y = Math.min(entity.velocity.y, -3.5);
+        if (entity.kind !== "helicopter") entity.root.setEnabled(false);
         if (entity.kind === "helicopter") this.destroyedAir += 1;
         else this.destroyedGround += 1;
         this.callbacks.onDestroyed(entity);
       },
     };
     return entity;
+  }
+
+  private updateDestroyed(enemy: EnemyEntity, delta: number) {
+    if (enemy.kind !== "helicopter" || enemy.crashed || !enemy.root.isEnabled()) return;
+    enemy.wreckTime += delta;
+    enemy.velocity.y -= 16 * delta;
+    enemy.velocity.x *= Math.exp(-delta * 0.38);
+    enemy.velocity.z *= Math.exp(-delta * 0.38);
+    enemy.position.addInPlace(enemy.velocity.scale(delta));
+    enemy.phase += delta;
+    enemy.root.rotationQuaternion = Quaternion.FromEulerAngles(
+      enemy.phase * 1.7,
+      enemy.phase * 0.55,
+      enemy.phase * 2.15,
+    );
+    if (enemy.visual) {
+      const rotorDecay = Math.max(0, 1 - enemy.wreckTime / 3.5);
+      enemy.visual.rotor.rotation.y += delta * 48 * rotorDecay;
+      enemy.visual.tailRotor.rotation.y += delta * 72 * rotorDecay;
+    }
+
+    const ground = terrainHeight(enemy.position.x, enemy.position.z) + 2.2;
+    if (enemy.position.y <= ground || enemy.wreckTime >= 7) {
+      enemy.position.y = Math.max(enemy.position.y, ground);
+      enemy.crashed = true;
+      this.callbacks.onCrash(enemy);
+      enemy.root.setEnabled(false);
+    }
   }
 
   private updateHelicopter(enemy: EnemyEntity, delta: number, playerPosition: Vector3, playerVelocity: Vector3) {

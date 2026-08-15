@@ -106,7 +106,12 @@ weapon system to perform target selection and collision without coupling to mesh
 Player weapons use pooled lifecycle arrays with explicit disposal. Hellfires steer
 toward a live target, Hydras follow gravity-biased ballistics, and cannon rounds use
 high-speed traces. Swept segment/sphere tests prevent fast rounds from tunnelling
-between fixed updates. Damage is component-aware for the player and health-based for AI.
+between fixed updates. A bounded aim-assist cone can converge cannon lead or Hydra aim
+without permitting off-boresight snap shots. Elongated emissive projectiles, muzzle
+flashes, exhaust glows, expanding smoke particles, blast spheres, and shockwave rings
+share the same fixed-step lifecycle. Damage is component-aware for the player and
+health-based for AI. Destroyed helicopters retain momentum, lose rotor energy, tumble
+under gravity, and trigger a second wreck-impact blast at terrain contact.
 
 `TargetTracker` owns target selection and track state independently of rendering.
 Contacts must be alive, in sensor range, within the sensor field of regard, and clear
@@ -114,7 +119,10 @@ of sampled terrain. Valid signal increases track quality through acquiring and
 tracking to locked; masking or leaving the field causes a timed coast and decay rather
 than an immediate disappearance. The track computer derives closure, bearing,
 relative azimuth, elevation, target health, and a cannon intercept point. Hellfire
-launch authorization reads the same lock state shown to the player.
+launch authorization reads the same lock state shown to the player. With no manual
+selection, ranked acquisition prioritizes hostile helicopters, then SAMs and armour,
+and automatically reacquires when the tracked contact is destroyed. A wider contact
+snapshot feeds all-hostile screen/edge cues and the heading-relative tactical scope.
 
 `FlightDataComputer` runs in the fixed simulation loop and derives air-relative TAS,
 ground speed/track, drift, vertical speed, attitude, turn rate, smoothed normal load,

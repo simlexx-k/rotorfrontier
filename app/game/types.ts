@@ -11,6 +11,7 @@ export type TargetTrackState = "none" | "acquiring" | "tracking" | "locked" | "m
 export type FlightMode = "ground" | "hover" | "climb" | "descent" | "cruise";
 export type MissionPhase = "nav" | "hold" | "engage" | "rtb" | "complete";
 export type CombatUiEventKind = "hit" | "critical" | "kill" | "damaged" | "impact";
+export type WeaponStatus = "ready" | "cooldown" | "acquiring" | "locked" | "empty";
 
 export interface MissionDefinition {
   id: MissionId;
@@ -104,6 +105,21 @@ export interface CombatUiEvent {
   direction?: number;
 }
 
+export interface EnemyContactTelemetry {
+  id: string;
+  name: string;
+  kind: "helicopter" | "armour" | "sam";
+  distance: number;
+  bearing: number;
+  relativeBearing: number;
+  health: number;
+  lineOfSight: boolean;
+  selected: boolean;
+  onScreen: boolean;
+  screenX: number;
+  screenY: number;
+}
+
 export interface FlightTelemetry {
   altitude: number;
   radarAltitude: number;
@@ -132,6 +148,7 @@ export interface FlightTelemetry {
   rockets: number;
   missiles: number;
   selectedWeapon: WeaponType;
+  weaponStatus: WeaponStatus;
   targetName: string;
   targetDistance: number;
   targetKind: "helicopter" | "armour" | "sam" | "none";
@@ -143,12 +160,14 @@ export interface FlightTelemetry {
   targetRelativeBearing: number;
   targetElevation: number;
   targetLineOfSight: boolean;
+  targetAutomatic: boolean;
   targetVisible: boolean;
   targetScreenX: number;
   targetScreenY: number;
   leadVisible: boolean;
   leadScreenX: number;
   leadScreenY: number;
+  enemyContacts: EnemyContactTelemetry[];
   flightData: FlightDataTelemetry;
   threatLevel: "clear" | "tracking" | "missile";
   kills: number;

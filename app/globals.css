@@ -939,6 +939,140 @@ kbd {
 .target-bracket.track-masked,
 .target-bracket.track-lost { opacity: 0.48; filter: grayscale(0.5); }
 
+.enemy-contact {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  justify-items: center;
+  gap: 0.28rem;
+  transform: translate(-50%, -50%);
+  color: var(--red);
+  transition: left 80ms linear, top 80ms linear;
+}
+
+.enemy-contact i {
+  display: block;
+  width: 0.72rem;
+  height: 0.72rem;
+  border: 1px solid currentColor;
+  background: rgba(255, 40, 40, 0.1);
+  box-shadow: 0 0 7px currentColor;
+}
+
+.enemy-contact.edge i {
+  width: 0;
+  height: 0;
+  border: 0;
+  border-right: 0.42rem solid transparent;
+  border-bottom: 0.8rem solid currentColor;
+  border-left: 0.42rem solid transparent;
+  background: transparent;
+  transform-origin: 50% 55%;
+}
+
+.enemy-contact span {
+  padding: 0.16rem 0.28rem;
+  background: rgba(3, 8, 10, 0.74);
+  color: currentColor;
+  font-size: 0.43rem;
+  font-weight: 750;
+  letter-spacing: 0.055em;
+  white-space: nowrap;
+}
+
+.enemy-contact.contact-sam { color: #ff7af2; }
+.enemy-contact.contact-armour { color: var(--amber); }
+.enemy-contact.selected { color: var(--lime); animation: contact-pulse 0.62s ease-in-out infinite alternate; }
+.enemy-contact.masked { opacity: 0.42; filter: grayscale(0.6); }
+
+.tactical-radar {
+  position: absolute;
+  bottom: 5.1rem;
+  left: 1rem;
+  z-index: 3;
+  width: 9.2rem;
+  padding: 0.55rem;
+  background: rgba(2, 9, 11, 0.78);
+  border: 1px solid rgba(104, 224, 211, 0.32);
+  backdrop-filter: blur(4px);
+}
+
+.radar-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.38rem;
+  color: var(--muted);
+  font-size: 0.44rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.radar-heading strong { color: var(--red); }
+
+.radar-scope {
+  position: relative;
+  width: 7.2rem;
+  height: 7.2rem;
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid rgba(104, 224, 211, 0.46);
+  border-radius: 50%;
+  background:
+    linear-gradient(rgba(104, 224, 211, 0.13), rgba(104, 224, 211, 0.13)) 50% 0 / 1px 100% no-repeat,
+    linear-gradient(90deg, rgba(104, 224, 211, 0.13), rgba(104, 224, 211, 0.13)) 0 50% / 100% 1px no-repeat,
+    radial-gradient(circle, rgba(104, 224, 211, 0.08), rgba(2, 8, 10, 0.72) 68%);
+}
+
+.radar-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border: 1px solid rgba(104, 224, 211, 0.17);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.radar-ring-outer { width: 72%; height: 72%; }
+.radar-ring-inner { width: 38%; height: 38%; }
+
+.radar-sweep {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--cyan), transparent);
+  transform-origin: left;
+  animation: radar-sweep 3.2s linear infinite;
+}
+
+.radar-ownship {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-right: 0.28rem solid transparent;
+  border-bottom: 0.58rem solid var(--lime);
+  border-left: 0.28rem solid transparent;
+  transform: translate(-50%, -50%);
+}
+
+.radar-contact {
+  position: absolute;
+  width: 0.32rem;
+  height: 0.32rem;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 5px currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.radar-contact.contact-helicopter { background: var(--red); color: var(--red); }
+.radar-contact.contact-sam { background: #ff7af2; color: #ff7af2; }
+.radar-contact.selected { width: 0.48rem; height: 0.48rem; border: 1px solid var(--lime); animation: contact-pulse 0.5s ease-in-out infinite alternate; }
+
 .bracket-name,
 .bracket-data {
   position: absolute;
@@ -1015,7 +1149,49 @@ kbd {
 .hit-confirm strong { display: block; font-size: 0.58rem; }
 .hit-confirm span { display: block; margin-top: 0.18rem; color: var(--ink); font-size: 0.48rem; }
 .hit-critical { color: var(--amber); }
-.hit-kill { color: var(--red); animation-duration: 720ms; }
+.hit-kill { width: min(24rem, 80vw); color: var(--red); animation-duration: 920ms; }
+.hit-kill strong { font-size: 0.78rem; text-shadow: 0 0 16px currentColor; }
+
+.weapon-visual {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.08rem 0.55rem;
+  min-width: 10rem;
+  padding-block: 0.42rem;
+  text-align: left;
+}
+
+.weapon-visual > span,
+.weapon-visual > small { text-transform: uppercase; }
+.weapon-visual > span { color: currentColor; font-weight: 800; }
+.weapon-visual > strong { color: var(--ink); font-size: 0.74rem; text-align: right; }
+.weapon-visual > small { color: var(--muted); font-size: 0.42rem; letter-spacing: 0.08em; }
+
+.weapon-visual > i {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 0.24rem;
+  margin-top: 0.12rem;
+  background: linear-gradient(90deg, currentColor 0 72%, rgba(255, 255, 255, 0.1) 72%);
+  clip-path: polygon(0 38%, 84% 38%, 92% 0, 100% 50%, 92% 100%, 84% 62%, 0 62%);
+}
+
+.weapon-visual > i b {
+  position: absolute;
+  top: -0.11rem;
+  left: 20%;
+  width: 0.26rem;
+  height: 0.46rem;
+  border: 1px solid currentColor;
+}
+
+.weapon-visual.status-locked { color: var(--red); border-color: var(--red); }
+.weapon-visual.status-acquiring,
+.weapon-visual.status-cooldown { color: var(--amber); border-color: var(--amber); }
+.weapon-visual.status-empty { color: var(--muted); border-color: var(--muted); }
+
+@keyframes radar-sweep { to { transform: rotate(360deg); } }
+@keyframes contact-pulse { to { opacity: 0.45; filter: drop-shadow(0 0 8px currentColor); } }
 
 .damage-vignette {
   position: absolute;
@@ -1576,6 +1752,11 @@ select:disabled { opacity: 0.45; }
   .target-data-grid { grid-template-columns: 1fr; }
   .target-bracket { width: 3.7rem; height: 3.7rem; }
   .weapon-chip, .assist-chip { min-width: 6rem; }
+  .weapon-visual { min-width: 7.2rem; }
+  .tactical-radar { left: 0.35rem; bottom: 5rem; width: 6.7rem; padding: 0.38rem; }
+  .radar-scope { width: 5.4rem; height: 5.4rem; }
+  .radar-heading > span { display: none; }
+  .enemy-contact.onscreen:not(.selected) span { display: none; }
   .takeoff-hint { bottom: 4.8rem; min-width: calc(100vw - 1rem); }
   .takeoff-hint span { font-size: 0.48rem; }
   .hud-bottom .weapon-chip:nth-child(3),

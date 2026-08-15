@@ -1,4 +1,4 @@
-const CACHE = "rotorfrontier-shell-v6";
+const CACHE = "rotorfrontier-shell-v7";
 const SHELL = ["/", "/manifest.webmanifest", "/favicon.svg"];
 
 self.addEventListener("install", (event) => {

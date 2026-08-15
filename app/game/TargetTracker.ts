@@ -26,6 +26,20 @@ export interface TargetTrack {
   position: Vector3 | null;
   leadPoint: Vector3 | null;
   leadTime: number;
+  automatic: boolean;
+}
+
+export interface SensorContact {
+  id: string;
+  name: string;
+  kind: CombatTarget["kind"];
+  distance: number;
+  bearing: number;
+  relativeBearing: number;
+  healthPercent: number;
+  lineOfSight: boolean;
+  selected: boolean;
+  position: Vector3;
 }
 
 export interface SensorFrame {
@@ -51,6 +65,7 @@ const EMPTY_TRACK: TargetTrack = {
   position: null,
   leadPoint: null,
   leadTime: 0,
+  automatic: true,
 };
 
 const clamp = (value: number, minimum = 0, maximum = 1) =>
@@ -140,6 +155,7 @@ export class TargetTracker {
   private quality = 0;
   private lostTime = 0;
   private current: TargetTrack = { ...EMPTY_TRACK };
+  private selectionMode: "automatic" | "manual" = "automatic";
   private readonly halfFieldOfViewRadians: number;
 
   constructor(
@@ -151,23 +167,7 @@ export class TargetTracker {
   }
 
   cycle(targets: CombatTarget[], frame: Pick<SensorFrame, "position" | "forward">) {
-    const forward = frame.forward.normalize();
-    const available = targets
-      .filter((target) => target.alive)
-      .map((target) => {
-        const offset = target.position.subtract(frame.position);
-        const distance = offset.length();
-        const angle = distance > 0
-          ? Math.acos(clamp(Vector3.Dot(offset.scale(1 / distance), forward), -1, 1))
-          : 0;
-        const visible = hasTerrainLineOfSight(frame.position, target.position, this.sampleHeight);
-        return { target, distance, angle, visible };
-      })
-      .filter((candidate) =>
-        candidate.distance <= this.sensorRange &&
-        candidate.angle <= this.halfFieldOfViewRadians &&
-        candidate.visible
-      )
+    const available = this.availableTargets(targets, frame)
       .sort((left, right) => {
         const leftScore = left.angle * 900 + left.distance;
         const rightScore = right.angle * 900 + right.distance;
@@ -182,21 +182,34 @@ export class TargetTracker {
       (candidate) => candidate.target.id === this.selectedTargetId,
     );
     const next = available[(currentIndex + 1) % available.length].target;
-    if (next.id !== this.selectedTargetId) {
-      this.quality = 0;
-      this.lostTime = 0;
-    }
-    this.selectedTargetId = next.id;
+    this.select(next.id, "manual");
     return next;
   }
 
+  autoAcquire(targets: CombatTarget[], frame: Pick<SensorFrame, "position" | "forward">) {
+    const candidate = this.availableTargets(targets, frame)
+      .sort((left, right) => {
+        const priority = (target: CombatTarget) =>
+          target.kind === "helicopter" ? 0 : target.kind === "sam" ? 1 : 2;
+        const kindDifference = priority(left.target) - priority(right.target);
+        if (kindDifference !== 0) return kindDifference;
+        return left.angle * 1_100 + left.distance - (right.angle * 1_100 + right.distance);
+      })[0]?.target ?? null;
+    if (!candidate) return null;
+    this.select(candidate.id, "automatic");
+    return candidate;
+  }
+
   update(delta: number, frame: SensorFrame, targets: CombatTarget[], projectileSpeed = 390) {
-    const target = targets.find(
+    let target = targets.find(
       (candidate) => candidate.id === this.selectedTargetId && candidate.alive,
     );
     if (!target) {
-      this.clear();
-      return this.track;
+      target = this.autoAcquire(targets, frame) ?? undefined;
+      if (!target) {
+        this.clear();
+        return this.track;
+      }
     }
 
     const offset = target.position.subtract(frame.position);
@@ -267,8 +280,46 @@ export class TargetTracker {
       position: target.position.clone(),
       leadPoint: intercept.point,
       leadTime: intercept.time,
+      automatic: this.selectionMode === "automatic",
     };
     return this.track;
+  }
+
+  contacts(
+    targets: CombatTarget[],
+    frame: Pick<SensorFrame, "position" | "forward">,
+    maximumRange = Math.max(3_200, this.sensorRange * 2.1),
+  ): SensorContact[] {
+    const ownHeading = bearingTo(frame.position, frame.position.add(frame.forward));
+    return targets
+      .filter((target) => target.alive)
+      .map((target) => {
+        const distance = Vector3.Distance(frame.position, target.position);
+        const bearing = bearingTo(frame.position, target.position);
+        const maximumHealth = Math.max(1, target.maxHealth ?? target.health);
+        return {
+          id: target.id,
+          name: target.name,
+          kind: target.kind,
+          distance,
+          bearing,
+          relativeBearing: normalizeAngle(bearing - ownHeading),
+          healthPercent: clamp(target.health / maximumHealth) * 100,
+          lineOfSight: hasTerrainLineOfSight(
+            frame.position,
+            target.position,
+            this.sampleHeight,
+          ),
+          selected: target.id === this.selectedTargetId,
+          position: target.position.clone(),
+        };
+      })
+      .filter((contact) => contact.distance <= maximumRange)
+      .sort((left, right) => {
+        const leftPriority = left.kind === "helicopter" ? 0 : left.kind === "sam" ? 1 : 2;
+        const rightPriority = right.kind === "helicopter" ? 0 : right.kind === "sam" ? 1 : 2;
+        return leftPriority - rightPriority || left.distance - right.distance;
+      });
   }
 
   get track(): TargetTrack {
@@ -287,6 +338,39 @@ export class TargetTracker {
     this.selectedTargetId = "";
     this.quality = 0;
     this.lostTime = 0;
+    this.selectionMode = "automatic";
     this.current = { ...EMPTY_TRACK };
+  }
+
+  private availableTargets(
+    targets: CombatTarget[],
+    frame: Pick<SensorFrame, "position" | "forward">,
+  ) {
+    const forward = frame.forward.normalize();
+    return targets
+      .filter((target) => target.alive)
+      .map((target) => {
+        const offset = target.position.subtract(frame.position);
+        const distance = offset.length();
+        const angle = distance > 0
+          ? Math.acos(clamp(Vector3.Dot(offset.scale(1 / distance), forward), -1, 1))
+          : 0;
+        const visible = hasTerrainLineOfSight(frame.position, target.position, this.sampleHeight);
+        return { target, distance, angle, visible };
+      })
+      .filter((candidate) =>
+        candidate.distance <= this.sensorRange &&
+        candidate.angle <= this.halfFieldOfViewRadians &&
+        candidate.visible
+      );
+  }
+
+  private select(id: string, mode: "automatic" | "manual") {
+    if (id !== this.selectedTargetId) {
+      this.quality = 0;
+      this.lostTime = 0;
+    }
+    this.selectedTargetId = id;
+    this.selectionMode = mode;
   }
 }

@@ -80,9 +80,74 @@ test("TADS track requires acquisition dwell and reports closure and health", () 
   for (let step = 0; step < 8; step += 1) track = tracker.update(0.1, frame, [contact]);
   assert.equal(track.state, "locked");
   assert.equal(tracker.hasWeaponLock, true);
+  assert.equal(track.automatic, false);
   assert.ok(track.closureRate > 49.9 && track.closureRate < 50.1);
   assert.equal(track.healthPercent, 100);
   assert.ok(track.leadPoint);
+});
+
+test("TADS automatically prioritizes and locks hostile helicopters", () => {
+  const tracker = new TargetTracker(1_500, () => 0);
+  const armour = target({
+    id: "armour-close",
+    position: new Vector3(0, 100, -220),
+  });
+  const helicopter = target({
+    id: "air-1",
+    name: "VIPER 1",
+    kind: "helicopter",
+    position: new Vector3(60, 140, -620),
+    velocity: new Vector3(18, 0, 0),
+    health: 100,
+    maxHealth: 100,
+  });
+  const frame = {
+    position: new Vector3(0, 100, 0),
+    velocity: Vector3.Zero(),
+    forward: new Vector3(0, 0, -1),
+  };
+
+  let track = tracker.update(0.1, frame, [armour, helicopter]);
+  assert.equal(track.id, helicopter.id);
+  assert.equal(track.automatic, true);
+  for (let step = 0; step < 10; step += 1) {
+    track = tracker.update(0.1, frame, [armour, helicopter]);
+  }
+  assert.equal(track.state, "locked");
+  assert.equal(tracker.hasWeaponLock, true);
+});
+
+test("TADS automatically reacquires and exposes a tactical contact picture", () => {
+  const tracker = new TargetTracker(1_500, () => 0);
+  const first = target({
+    id: "air-1",
+    name: "VIPER 1",
+    kind: "helicopter",
+    position: new Vector3(-80, 130, -520),
+  });
+  const second = target({
+    id: "air-2",
+    name: "VIPER 2",
+    kind: "helicopter",
+    position: new Vector3(140, 150, -760),
+  });
+  const frame = {
+    position: new Vector3(0, 100, 0),
+    velocity: Vector3.Zero(),
+    forward: new Vector3(0, 0, -1),
+  };
+
+  assert.equal(tracker.update(0.1, frame, [first, second]).id, first.id);
+  first.alive = false;
+  const reacquired = tracker.update(0.1, frame, [first, second]);
+  assert.equal(reacquired.id, second.id);
+  assert.equal(reacquired.automatic, true);
+
+  const contacts = tracker.contacts([first, second], frame);
+  assert.equal(contacts.length, 1);
+  assert.equal(contacts[0].id, second.id);
+  assert.equal(contacts[0].selected, true);
+  assert.equal(contacts[0].kind, "helicopter");
 });
 
 test("TADS retains a coasting track when terrain masks a locked target", () => {

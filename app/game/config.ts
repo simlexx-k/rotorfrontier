@@ -109,7 +109,7 @@ export const CONTROL_REFERENCE = [
   ["Primary weapon", "Left click / F · A"],
   ["Secondary weapon", "Right click · B"],
   ["Cycle secondary", "R · X"],
-  ["Cycle target", "Wheel / N / M / Tab · D-pad up"],
+  ["Manual target override", "Wheel / N / M / Tab · D-pad up"],
   ["Change camera", "V · Y"],
   ["Arcade flight assist", "H · Left stick click"],
   ["Pause", "P / Esc · Menu"],

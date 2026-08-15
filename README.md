@@ -30,13 +30,16 @@ keyboard and mouse or a standard-layout game controller.
 - Autonomous hostile helicopters, moving armour, and guided SAM threats with
   patrol, pursuit, lead targeting, engagement envelopes, and damage states
 - M230 cannon, Hydra rockets, and target-locked Hellfire missiles with ammunition,
-  ballistics, homing, swept collision, damage, explosions, and sensor-driven target
+  ballistics, homing, swept collision, bounded aim assistance, luminous projectile
+  streaks, rocket/missile exhaust, smoke trails, shockwaves, and sensor-driven target
   acquisition with terrain masking, track quality/coasting, closure, and lead cues
 - A 60 Hz flight-data computer with TAS/ground-speed separation, attitude and load,
   track/drift, torque and power margin, fuel endurance, waypoint bearing/range/ETE,
   and explicit ground/hover/climb/descent/cruise modes
-- Combat UX with screen-space target brackets, lock/health bars, hit/critical/kill
-  confirmations, impact vignettes, directional damage indicators, haptics, and tones
+- Combat UX with automatic helicopter-first lock/reacquisition, an all-hostiles radar,
+  screen/edge position markers, lock/health bars, weapon-readiness graphics,
+  hit/critical/takedown confirmations, falling helicopter wrecks, impact vignettes,
+  directional damage indicators, haptics, and tones
 - Persistent local career with credits, XP, ratings, sortie statistics, and five-tier
   engine, armour, sensor, and stores upgrades
 - Two-player WebRTC co-op using a low-latency unreliable flight-state channel and a
@@ -79,7 +82,7 @@ rendered metadata test, and deterministic career/mission/flight-model tests.
 | M230 cannon | Left click / `F` | A / Cross |
 | Rocket or missile | Right click | B / Circle |
 | Cycle secondary weapon | `R` | X / Square |
-| Cycle target | Wheel, `N`, `M`, or `Tab` | D-pad up |
+| Manual target override | Wheel, `N`, `M`, or `Tab` | D-pad up |
 | Change camera | `V` | Y / Triangle |
 | Toggle arcade flight assist | `H` | Left-stick click |
 | Pause | `P` / `Esc` | Menu / Options |
@@ -92,6 +95,10 @@ and release to capture a hover. Direction inputs command predictable aircraft-re
 motion and the helicopter automatically levels and brakes when released. Toggle the
 assist with `H` or the left-stick button for persistent collective and unrestricted
 cyclic control.
+
+TADS automatically scans visible contacts, prioritizes hostile helicopters, builds
+the lock, and reacquires after a takedown. The tactical scope and edge markers show
+all detected enemy positions; target-cycle inputs remain a manual override.
 
 ## Co-op connection
 

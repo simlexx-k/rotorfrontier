@@ -146,7 +146,11 @@ export class GameRuntime {
                 : "hit";
             this.emitCombatEvent(
               kind,
-              event.destroyed ? "TARGET DESTROYED" : kind === "critical" ? "CRITICAL HIT" : "HIT CONFIRMED",
+              event.destroyed
+                ? `${event.targetName} ${event.targetKind === "helicopter" ? "TAKEN DOWN" : "DESTROYED"}`
+                : kind === "critical"
+                  ? `${event.targetName} · CRITICAL HIT`
+                  : `${event.targetName} · HIT CONFIRMED`,
               event.damage,
             );
           },
@@ -164,10 +168,16 @@ export class GameRuntime {
       this.ai = new AISystem(this.scene, this.world, this.mission, {
         onFire: (origin, direction, speed, guided) => this.combat?.fireEnemy(origin, direction, speed, guided),
         onDestroyed: (enemy) => {
-          this.combat?.explode(enemy.position, enemy.kind === "helicopter" ? 1.25 : 0.9);
+          this.combat?.explode(enemy.position, enemy.kind === "helicopter" ? 1.2 : 0.9);
           this.kills += 1;
           this.score += enemy.kind === "sam" ? 1250 : enemy.kind === "helicopter" ? 1000 : 650;
-          this.callbacks.onNotice(`${enemy.name} destroyed`);
+          this.callbacks.onNotice(
+            enemy.kind === "helicopter" ? `${enemy.name} takedown confirmed` : `${enemy.name} destroyed`,
+          );
+        },
+        onCrash: (enemy) => {
+          this.combat?.explode(enemy.position, 1.65);
+          this.callbacks.onNotice(`${enemy.name} wreck impact`);
         },
       });
       this.director = new MissionDirector(this.mission);
@@ -489,6 +499,46 @@ export class GameRuntime {
     const target = this.combat?.targetInfo();
     const targetScreen = this.projectHudPoint(target?.position ?? null);
     const leadScreen = this.projectHudPoint(target?.leadPoint ?? null);
+    const sensorForward = Vector3.Forward().applyRotationQuaternion(this.flight.rotation);
+    const enemyContacts = this.combat
+      ?.contactInfo(this.ai?.targets ?? [], {
+        position: this.flight.position,
+        forward: sensorForward,
+      })
+      .map((contact) => {
+        const projected = this.projectHudPoint(contact.position);
+        const relativeRadians = contact.relativeBearing * Math.PI / 180;
+        return {
+          id: contact.id,
+          name: contact.name,
+          kind: contact.kind,
+          distance: contact.distance,
+          bearing: contact.bearing,
+          relativeBearing: contact.relativeBearing,
+          health: contact.healthPercent,
+          lineOfSight: contact.lineOfSight,
+          selected: contact.selected,
+          onScreen: projected.visible,
+          screenX: projected.visible
+            ? projected.x
+            : Math.min(96, Math.max(4, 50 + Math.sin(relativeRadians) * 46)),
+          screenY: projected.visible
+            ? projected.y
+            : Math.min(91, Math.max(8, 50 - Math.cos(relativeRadians) * 42)),
+        };
+      }) ?? [];
+    const secondaryAmmo = this.combat?.selectedWeapon === "hellfire"
+      ? this.combat.missiles
+      : this.combat?.rockets ?? 0;
+    const weaponStatus = secondaryAmmo <= 0
+      ? "empty"
+      : this.secondaryCooldown > 0
+        ? "cooldown"
+        : this.combat?.selectedWeapon === "hellfire"
+          ? target?.state === "locked" && target.lineOfSight
+            ? "locked"
+            : "acquiring"
+          : "ready";
     return {
       altitude: this.flight.position.y * 3.28084,
       radarAltitude: Math.max(
@@ -520,6 +570,7 @@ export class GameRuntime {
       rockets: this.combat?.rockets ?? 0,
       missiles: this.combat?.missiles ?? 0,
       selectedWeapon: this.combat?.selectedWeapon ?? "hydra",
+      weaponStatus,
       targetName: target?.name ?? "NO TARGET",
       targetDistance: target?.distance ?? 0,
       targetKind: target?.kind ?? "none",
@@ -531,12 +582,14 @@ export class GameRuntime {
       targetRelativeBearing: target?.relativeBearing ?? 0,
       targetElevation: target?.elevation ?? 0,
       targetLineOfSight: target?.lineOfSight ?? false,
+      targetAutomatic: target?.automatic ?? true,
       targetVisible: targetScreen.visible,
       targetScreenX: targetScreen.x,
       targetScreenY: targetScreen.y,
       leadVisible: leadScreen.visible && (target?.quality ?? 0) >= 0.28,
       leadScreenX: leadScreen.x,
       leadScreenY: leadScreen.y,
+      enemyContacts,
       flightData: { ...this.flightData },
       threatLevel: this.combat?.threatLevel ?? "clear",
       kills: this.kills,

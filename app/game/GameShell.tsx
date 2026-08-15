@@ -52,6 +52,7 @@ const EMPTY_TELEMETRY: FlightTelemetry = {
   rockets: 0,
   missiles: 0,
   selectedWeapon: "hydra",
+  weaponStatus: "ready",
   targetName: "NO TARGET",
   targetDistance: 0,
   targetKind: "none",
@@ -63,12 +64,14 @@ const EMPTY_TELEMETRY: FlightTelemetry = {
   targetRelativeBearing: 0,
   targetElevation: 0,
   targetLineOfSight: false,
+  targetAutomatic: true,
   targetVisible: false,
   targetScreenX: 50,
   targetScreenY: 50,
   leadVisible: false,
   leadScreenX: 50,
   leadScreenY: 50,
+  enemyContacts: [],
   flightData: {
     mode: "ground",
     trueAirspeed: 0,
@@ -485,7 +488,7 @@ export default function GameShell() {
               <div className={`hud-panel target-panel track-${telemetry.targetState}`}>
                 <div className="module-heading">
                   <span className="hud-label">TADS target track</span>
-                  <strong>{telemetry.targetState}</strong>
+                  <strong>{telemetry.targetAutomatic ? "AUTO " : "MAN "}{telemetry.targetState}</strong>
                 </div>
                 <strong className="hud-target">{telemetry.targetName}</strong>
                 {telemetry.targetName !== "NO TARGET" ? (
@@ -500,7 +503,7 @@ export default function GameShell() {
                     <div className="dual-track"><i style={{ width: `${telemetry.targetQuality}%` }} /><b style={{ width: `${telemetry.targetHealth}%` }} /></div>
                     <small>{telemetry.targetLineOfSight ? "LOS VALID" : "TERRAIN MASKED"} · AZ {formatSigned(telemetry.targetRelativeBearing)}°</small>
                   </>
-                ) : <small>TAB / D-PAD UP TO ACQUIRE</small>}
+                ) : <small>AUTO-SCAN ACTIVE · WHEEL / TAB FOR MANUAL OVERRIDE</small>}
               </div>
             </div>
 
@@ -526,6 +529,44 @@ export default function GameShell() {
               <StatusMetric label="Fuel" value={telemetry.fuel} />
             </div>
 
+            <div className="tactical-radar" aria-label={`${telemetry.enemyContacts.length} hostile contacts detected`}>
+              <div className="radar-heading"><span>Tactical picture</span><strong>{telemetry.enemyContacts.length} HOSTILE</strong></div>
+              <div className="radar-scope" aria-hidden="true">
+                <i className="radar-ring radar-ring-outer" />
+                <i className="radar-ring radar-ring-inner" />
+                <i className="radar-sweep" />
+                <b className="radar-ownship" />
+                {telemetry.enemyContacts.map((contact) => {
+                  const radians = contact.relativeBearing * Math.PI / 180;
+                  const radius = Math.min(42, contact.distance / 3200 * 42);
+                  return (
+                    <span
+                      key={`radar-${contact.id}`}
+                      className={`radar-contact contact-${contact.kind} ${contact.selected ? "selected" : ""}`}
+                      style={{
+                        left: `${50 + Math.sin(radians) * radius}%`,
+                        top: `${50 - Math.cos(radians) * radius}%`,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            {telemetry.enemyContacts.map((contact) =>
+              contact.selected && contact.onScreen ? null : (
+                <div
+                  className={`enemy-contact contact-${contact.kind} ${contact.onScreen ? "onscreen" : "edge"} ${contact.selected ? "selected" : ""} ${contact.lineOfSight ? "" : "masked"}`}
+                  style={{ left: `${contact.screenX}%`, top: `${contact.screenY}%` }}
+                  key={contact.id}
+                  aria-hidden="true"
+                >
+                  <i style={{ transform: contact.onScreen ? "rotate(45deg)" : `rotate(${contact.relativeBearing}deg)` }} />
+                  <span>{contact.name} · {Math.round(contact.distance)} M</span>
+                </div>
+              ),
+            )}
+
             {telemetry.targetVisible ? (
               <div
                 className={`target-bracket track-${telemetry.targetState}`}
@@ -533,7 +574,9 @@ export default function GameShell() {
                 aria-hidden="true"
               >
                 <span className="bracket-name">{telemetry.targetName}</span>
-                <span className="bracket-data">{Math.round(telemetry.targetDistance)} M · {Math.round(telemetry.targetQuality)}%</span>
+                <span className="bracket-data">
+                  {telemetry.targetAutomatic ? "AUTO · " : "MAN · "}{Math.round(telemetry.targetDistance)} M · HP {Math.round(telemetry.targetHealth)}%
+                </span>
               </div>
             ) : null}
 
@@ -572,7 +615,12 @@ export default function GameShell() {
 
             <div className="hud-bottom">
               <div className="weapon-chip">M230 · {telemetry.cannonAmmo}</div>
-              <div className="weapon-chip active-weapon">{telemetry.selectedWeapon} · {secondaryAmmo}</div>
+              <div className={`weapon-chip active-weapon weapon-visual status-${telemetry.weaponStatus}`}>
+                <span>{telemetry.selectedWeapon}</span>
+                <strong>{secondaryAmmo}</strong>
+                <small>{telemetry.weaponStatus}</small>
+                <i><b /></i>
+              </div>
               <div className="weapon-chip airframe-chip">{ACTIVE_AIRCRAFT.designation} · GUARDIAN</div>
               <div className="weapon-chip">K {telemetry.kills} · {telemetry.score.toLocaleString()} PTS</div>
               {telemetry.networkStatus === "connected" ? <div className="weapon-chip network-live">WINGMAN · LIVE</div> : null}
@@ -636,7 +684,10 @@ export default function GameShell() {
             assist mode, hold Space or RT to ascend and C or LT to descend; releasing
             either captures a hover. WASD, arrow keys or the left stick command direct
             movement, with automatic levelling and braking. Press H or the left-stick
-            button to toggle the advanced persistent-collective flight model.
+            button to toggle the advanced persistent-collective flight model. TADS
+            automatically prioritizes visible hostile helicopters, builds a weapon
+            lock, and reacquires after a takedown; wheel, Tab, N/M or D-pad up manually
+            overrides the selected contact.
           </p>
           <div className="controls-grid">
             {CONTROL_REFERENCE.map(([label, binding]) => (

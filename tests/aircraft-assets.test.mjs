@@ -59,3 +59,15 @@ test("licensed sampled helicopter and weapon audio ships with attribution", asyn
   assert.match(attribution, /CC BY 3\.0/);
   assert.match(attribution, /CC0/);
 });
+
+test("weapon effects and helicopter takedown visuals ship in the combat runtime", async () => {
+  const combat = await readFile("app/game/CombatSystem.ts", "utf8");
+  const ai = await readFile("app/game/AISystem.ts", "utf8");
+
+  assert.match(combat, /Quaternion\.FromLookDirectionLH/);
+  assert.match(combat, /spawnExhaust/);
+  assert.match(combat, /CreateTorus/);
+  assert.match(combat, /explosion-shockwave/);
+  assert.match(ai, /updateDestroyed/);
+  assert.match(ai, /wreck impact|onCrash/);
+});
