@@ -30,7 +30,13 @@ keyboard and mouse or a standard-layout game controller.
 - Autonomous hostile helicopters, moving armour, and guided SAM threats with
   patrol, pursuit, lead targeting, engagement envelopes, and damage states
 - M230 cannon, Hydra rockets, and target-locked Hellfire missiles with ammunition,
-  ballistics, homing, collision, damage, explosions, target cycling, and warnings
+  ballistics, homing, swept collision, damage, explosions, and sensor-driven target
+  acquisition with terrain masking, track quality/coasting, closure, and lead cues
+- A 60 Hz flight-data computer with TAS/ground-speed separation, attitude and load,
+  track/drift, torque and power margin, fuel endurance, waypoint bearing/range/ETE,
+  and explicit ground/hover/climb/descent/cruise modes
+- Combat UX with screen-space target brackets, lock/health bars, hit/critical/kill
+  confirmations, impact vignettes, directional damage indicators, haptics, and tones
 - Persistent local career with credits, XP, ratings, sortie statistics, and five-tier
   engine, armour, sensor, and stores upgrades
 - Two-player WebRTC co-op using a low-latency unreliable flight-state channel and a

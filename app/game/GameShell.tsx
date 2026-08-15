@@ -15,6 +15,7 @@ import type { GameRuntime } from "./GameRuntime";
 import { NetworkSession } from "./NetworkSession";
 import type {
   CareerProfile,
+  CombatUiEvent,
   FlightTelemetry,
   GamePhase,
   GameSettings,
@@ -46,12 +47,48 @@ const EMPTY_TELEMETRY: FlightTelemetry = {
   objective: "",
   objectiveProgress: 0,
   objectiveDetail: "",
+  missionPhase: "nav",
   cannonAmmo: 0,
   rockets: 0,
   missiles: 0,
   selectedWeapon: "hydra",
   targetName: "NO TARGET",
   targetDistance: 0,
+  targetKind: "none",
+  targetState: "none",
+  targetQuality: 0,
+  targetHealth: 0,
+  targetClosure: 0,
+  targetBearing: 0,
+  targetRelativeBearing: 0,
+  targetElevation: 0,
+  targetLineOfSight: false,
+  targetVisible: false,
+  targetScreenX: 50,
+  targetScreenY: 50,
+  leadVisible: false,
+  leadScreenX: 50,
+  leadScreenY: 50,
+  flightData: {
+    mode: "ground",
+    trueAirspeed: 0,
+    groundSpeed: 0,
+    course: 0,
+    drift: 0,
+    verticalSpeed: 0,
+    pitch: 0,
+    roll: 0,
+    turnRate: 0,
+    loadFactor: 1,
+    torque: 0,
+    enginePower: 0,
+    powerMargin: 0,
+    fuelEnduranceMinutes: 0,
+    waypointActive: false,
+    waypointBearing: 0,
+    waypointRange: 0,
+    waypointEtaSeconds: 0,
+  },
   threatLevel: "clear",
   kills: 0,
   score: 0,
@@ -105,6 +142,7 @@ export default function GameShell() {
   const runtimeRef = useRef<GameRuntime | null>(null);
   const networkRef = useRef<NetworkSession | null>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const combatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [phase, setPhase] = useState<GamePhase>("menu");
   const [mission, setMission] = useState<MissionDefinition>(MISSIONS[0]);
   const [telemetry, setTelemetry] = useState(EMPTY_TELEMETRY);
@@ -113,6 +151,7 @@ export default function GameShell() {
   const [debrief, setDebrief] = useState<MissionResult | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [notice, setNotice] = useState("");
+  const [combatEvent, setCombatEvent] = useState<CombatUiEvent | null>(null);
   const [fatalError, setFatalError] = useState("");
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>("offline");
   const [offerCode, setOfferCode] = useState("");
@@ -133,6 +172,13 @@ export default function GameShell() {
     setNotice(message);
     if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
     noticeTimerRef.current = setTimeout(() => setNotice(""), 2600);
+  }, []);
+
+  const pushCombatEvent = useCallback((event: CombatUiEvent) => {
+    setCombatEvent(event);
+    if (combatTimerRef.current) clearTimeout(combatTimerRef.current);
+    const duration = event.kind === "damaged" || event.kind === "impact" ? 900 : event.kind === "kill" ? 760 : 480;
+    combatTimerRef.current = setTimeout(() => setCombatEvent(null), duration);
   }, []);
 
   useEffect(() => {
@@ -177,6 +223,7 @@ export default function GameShell() {
           onTelemetry: setTelemetry,
           onPause: (paused) => setPhase(paused ? "paused" : "playing"),
           onNotice: pushNotice,
+          onCombatEvent: pushCombatEvent,
           onFatal: setFatalError,
           onMissionComplete: (result) => {
             const updated = applyMissionResult(career, result);
@@ -199,7 +246,7 @@ export default function GameShell() {
       runtimeRef.current = null;
       setPhase("menu");
     }
-  }, [career, careerReady, mission, networkStatus, pushNotice, settings]);
+  }, [career, careerReady, mission, networkStatus, pushCombatEvent, pushNotice, settings]);
 
   const returnToMenu = useCallback(() => {
     runtimeRef.current?.dispose();
@@ -208,10 +255,12 @@ export default function GameShell() {
     setDebrief(null);
     setPhase("menu");
     setNotice("");
+    setCombatEvent(null);
   }, []);
 
   useEffect(() => () => {
     if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    if (combatTimerRef.current) clearTimeout(combatTimerRef.current);
     runtimeRef.current?.dispose();
     if (networkRef.current) {
       networkRef.current.onStatus = () => undefined;
@@ -298,6 +347,10 @@ export default function GameShell() {
     : settings.mapProvider === "open"
       ? "open data"
       : settings.mapProvider;
+  const showHitCue = combatEvent?.kind === "hit" || combatEvent?.kind === "critical" || combatEvent?.kind === "kill";
+  const showDamageCue = combatEvent?.kind === "damaged" || combatEvent?.kind === "impact";
+  const targetBearing = Math.round(telemetry.targetBearing).toString().padStart(3, "0");
+  const waypointBearing = Math.round(telemetry.flightData.waypointBearing).toString().padStart(3, "0");
 
   return (
     <main className="game-shell">
@@ -382,44 +435,133 @@ export default function GameShell() {
             <div className="hud-top">
               <span>{telemetry.missionTitle}</span>
               <strong>HDG {compass}</strong>
+              <span className="flight-mode-chip">{telemetry.flightData.mode}</span>
               <span>{telemetry.time} local</span>
               <span>{telemetry.weather}</span>
               <span className={`threat threat-${telemetry.threatLevel}`}>{telemetry.threatLevel}</span>
             </div>
 
             <div className="hud-left">
-              <HudMetric label="Airspeed" value={telemetry.airspeed} unit="KT" />
-              <HudMetric label="Altitude MSL" value={telemetry.altitude} unit="FT" />
-              <HudMetric label="Radar altitude" value={telemetry.radarAltitude} unit="FT" />
-              <HudMetric label="Vertical speed" value={telemetry.verticalSpeed} unit="FPM" />
-              <div className="hud-panel compact-panel">
-                <span className="hud-label">Target acquisition</span>
+              <div className="hud-panel fdc-panel">
+                <div className="module-heading">
+                  <span className="hud-label">Flight data computer</span>
+                  <strong>{telemetry.flightData.mode}</strong>
+                </div>
+                <div className="fdc-grid">
+                  <DataCell label="TAS" value={Math.round(telemetry.flightData.trueAirspeed)} unit="KT" />
+                  <DataCell label="GS" value={Math.round(telemetry.flightData.groundSpeed)} unit="KT" />
+                  <DataCell label="BARO" value={Math.round(telemetry.altitude)} unit="FT" />
+                  <DataCell label="RALT" value={Math.round(telemetry.radarAltitude)} unit="FT" />
+                  <DataCell label="VSI" value={Math.round(telemetry.flightData.verticalSpeed)} unit="FPM" />
+                  <DataCell label="LOAD" value={telemetry.flightData.loadFactor.toFixed(1)} unit="G" />
+                </div>
+                <div className="attitude-strip">
+                  <span>P {formatSigned(telemetry.flightData.pitch)}°</span>
+                  <div className="attitude-mini" aria-label={`Pitch ${Math.round(telemetry.flightData.pitch)} degrees, roll ${Math.round(telemetry.flightData.roll)} degrees`}>
+                    <i style={{ transform: `translateY(${Math.max(-12, Math.min(12, telemetry.flightData.pitch * 0.35))}px) rotate(${-telemetry.flightData.roll}deg)` }} />
+                  </div>
+                  <span>R {formatSigned(telemetry.flightData.roll)}°</span>
+                </div>
+              </div>
+
+              <div className="hud-panel nav-panel">
+                <div className="module-heading">
+                  <span className="hud-label">Navigation solution</span>
+                  <strong>{telemetry.flightData.waypointActive ? "ACTIVE" : "STANDBY"}</strong>
+                </div>
+                <div className="nav-row">
+                  <span>TRK <strong>{Math.round(telemetry.flightData.course).toString().padStart(3, "0")}°</strong></span>
+                  <span>DRIFT <strong>{formatSigned(telemetry.flightData.drift)}°</strong></span>
+                </div>
+                {telemetry.flightData.waypointActive ? (
+                  <div className="waypoint-solution">
+                    <span>BRG <strong>{waypointBearing}°</strong></span>
+                    <span>RNG <strong>{formatRange(telemetry.flightData.waypointRange)}</strong></span>
+                    <span>ETE <strong>{formatEta(telemetry.flightData.waypointEtaSeconds)}</strong></span>
+                  </div>
+                ) : <small>NO ACTIVE STEERPOINT</small>}
+              </div>
+
+              <div className={`hud-panel target-panel track-${telemetry.targetState}`}>
+                <div className="module-heading">
+                  <span className="hud-label">TADS target track</span>
+                  <strong>{telemetry.targetState}</strong>
+                </div>
                 <strong className="hud-target">{telemetry.targetName}</strong>
-                <small>{telemetry.targetDistance ? `${Math.round(telemetry.targetDistance)} M` : "TAB / D-PAD UP TO CYCLE"}</small>
+                {telemetry.targetName !== "NO TARGET" ? (
+                  <>
+                    <div className="target-data-grid">
+                      <span>RNG <strong>{formatRange(telemetry.targetDistance)}</strong></span>
+                      <span>BRG <strong>{targetBearing}°</strong></span>
+                      <span>CLS <strong>{formatSigned(telemetry.targetClosure)} M/S</strong></span>
+                      <span>EL <strong>{formatSigned(telemetry.targetElevation)}°</strong></span>
+                    </div>
+                    <div className="target-health-row"><span>TRACK {Math.round(telemetry.targetQuality)}%</span><span>HP {Math.round(telemetry.targetHealth)}%</span></div>
+                    <div className="dual-track"><i style={{ width: `${telemetry.targetQuality}%` }} /><b style={{ width: `${telemetry.targetHealth}%` }} /></div>
+                    <small>{telemetry.targetLineOfSight ? "LOS VALID" : "TERRAIN MASKED"} · AZ {formatSigned(telemetry.targetRelativeBearing)}°</small>
+                  </>
+                ) : <small>TAB / D-PAD UP TO ACQUIRE</small>}
               </div>
             </div>
 
             <div className="hud-right">
               <div className="hud-panel objective-panel">
-                <span className="hud-label">Primary objective</span>
+                <div className="module-heading"><span className="hud-label">Primary objective</span><strong>{telemetry.missionPhase}</strong></div>
                 <strong className="objective-name">{telemetry.objective}</strong>
                 <small>{telemetry.objectiveDetail}</small>
                 <div className="health-line"><span style={{ width: `${telemetry.objectiveProgress * 100}%` }} /></div>
               </div>
+              <div className="hud-panel power-panel">
+                <div className="module-heading"><span className="hud-label">Powertrain</span><strong>{telemetry.flightData.powerMargin < 12 ? "LIMIT" : "NOMINAL"}</strong></div>
+                <div className="power-grid">
+                  <DataCell label="NR" value={Math.round(telemetry.rotorRpm)} unit="%" />
+                  <DataCell label="TQ" value={Math.round(telemetry.flightData.torque)} unit="%" />
+                  <DataCell label="ENG" value={Math.round(telemetry.flightData.enginePower)} unit="%" />
+                  <DataCell label="MARGIN" value={Math.round(telemetry.flightData.powerMargin)} unit="%" />
+                </div>
+                <small>COLL {Math.round(telemetry.collective)}% · END {formatEndurance(telemetry.flightData.fuelEnduranceMinutes)}</small>
+              </div>
               <StatusMetric label="Hull integrity" value={telemetry.hull} />
               <StatusMetric label="Engine" value={telemetry.engine} />
               <StatusMetric label="Fuel" value={telemetry.fuel} />
-              <div className="hud-panel compact-panel">
-                <span className="hud-label">Rotor / Collective</span>
-                <strong className="hud-value">
-                  {Math.round(telemetry.rotorRpm)} / {Math.round(telemetry.collective)}<small>%</small>
-                </strong>
-              </div>
             </div>
 
-            <div className={`reticle ${telemetry.targetName !== "NO TARGET" ? "target-locked" : ""}`} aria-hidden="true">
+            {telemetry.targetVisible ? (
+              <div
+                className={`target-bracket track-${telemetry.targetState}`}
+                style={{ left: `${telemetry.targetScreenX}%`, top: `${telemetry.targetScreenY}%` }}
+                aria-hidden="true"
+              >
+                <span className="bracket-name">{telemetry.targetName}</span>
+                <span className="bracket-data">{Math.round(telemetry.targetDistance)} M · {Math.round(telemetry.targetQuality)}%</span>
+              </div>
+            ) : null}
+
+            {telemetry.leadVisible ? (
+              <div className="lead-cue" style={{ left: `${telemetry.leadScreenX}%`, top: `${telemetry.leadScreenY}%` }} aria-hidden="true"><span /></div>
+            ) : null}
+
+            <div className={`reticle track-${telemetry.targetState}`} aria-hidden="true">
               <span className="reticle-notch" />
             </div>
+
+            {showHitCue && combatEvent ? (
+              <div key={combatEvent.id} className={`hit-confirm hit-${combatEvent.kind}`} aria-live="assertive">
+                <i /><b />
+                <strong>{combatEvent.label}</strong>
+                {combatEvent.damage ? <span>+{Math.round(combatEvent.damage)} DMG</span> : null}
+              </div>
+            ) : null}
+
+            {showDamageCue && combatEvent ? (
+              <div key={combatEvent.id} className={`combat-impact impact-${combatEvent.kind}`} aria-live="assertive">
+                <div className="damage-vignette" />
+                {combatEvent.kind === "damaged" && combatEvent.direction !== undefined ? (
+                  <div className="damage-direction" style={{ transform: `translateX(-50%) rotate(${combatEvent.direction}deg)` }}><i /></div>
+                ) : null}
+                <strong>{combatEvent.label}</strong>
+              </div>
+            ) : null}
 
             <div className="hud-bottom">
               <div className="weapon-chip">M230 · {telemetry.cannonAmmo}</div>
@@ -747,13 +889,34 @@ function ToggleSetting({ label, checked, onChange }: { label: string; checked: b
   );
 }
 
-function HudMetric({ label, value, unit }: { label: string; value: number; unit: string }) {
+function DataCell({ label, value, unit }: { label: string; value: number | string; unit: string }) {
   return (
-    <div className="hud-panel">
-      <span className="hud-label">{label}</span>
-      <strong className="hud-value">{Math.round(value)} <small>{unit}</small></strong>
+    <div className="data-cell">
+      <span>{label}</span>
+      <strong>{value}<small>{unit}</small></strong>
     </div>
   );
+}
+
+function formatSigned(value: number) {
+  const rounded = Math.round(value);
+  return `${rounded > 0 ? "+" : ""}${rounded}`;
+}
+
+function formatRange(metres: number) {
+  return metres >= 1000 ? `${(metres / 1000).toFixed(1)} KM` : `${Math.round(metres)} M`;
+}
+
+function formatEta(seconds: number) {
+  if (!seconds || !Number.isFinite(seconds)) return "--:--";
+  const bounded = Math.min(seconds, 5_999);
+  return `${Math.floor(bounded / 60).toString().padStart(2, "0")}:${Math.floor(bounded % 60).toString().padStart(2, "0")}`;
+}
+
+function formatEndurance(minutes: number) {
+  if (!Number.isFinite(minutes)) return "--";
+  const hours = Math.floor(minutes / 60);
+  return `${hours}:${Math.floor(minutes % 60).toString().padStart(2, "0")}`;
 }
 
 function DossierMetric({ label, value, detail }: { label: string; value: string; detail: string }) {

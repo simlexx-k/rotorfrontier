@@ -21,6 +21,35 @@ rotor-energy, density, translational-lift, and ground-effect terms. A blade-elem
 or free-wake model would be expensive and poorly matched to a browser action game;
 the documented simplification is deliberate.
 
+## Target acquisition and flight data
+
+Army references describe the Longbow weapon system as supporting automatic target
+detection, classification, prioritization, and fire-and-forget engagement. Boeing's
+AH-64E modernization material identifies the upgraded M-TADS/PNVS electro-optical
+suite and improved target designation. FAA rotorcraft and instrument references
+organize pilot information around airspeed, altitude, vertical speed, heading,
+attitude, power, navigation tracking, and explicit mode status.
+
+- [U.S. Army: AH-64E Apache Guardian](https://odin.t2com.army.mil/WEG/Asset/AH-64E_Apache_Guardian_American_Attack_Helicopter)
+- [U.S. Army Longbow weapon-system description](https://www.asafm.army.mil/Portals/72/Documents/BudgetMaterial/20002001/base%20budget/justification%20book/aircraft.pdf)
+- [Boeing: AH-64E sensor modernization](https://www.boeing.com/features/2021/02/the-worlds-most-advanced-attack-helicopter-just-got-even-more-advanced)
+- [FAA Helicopter Flying Handbook](https://www.faa.gov/regulations_policies/handbooks_manuals/aviation/helicopter_flying_handbook)
+- [FAA Aeronautical Information Manual: helicopter operations](https://www.faa.gov/air_traffic/publications/atpubs/aim_html/chap10_section_1.html)
+
+Decision: model a game-readable sensor track lifecycle rather than instant target
+selection. Range, a gimballed field of regard, terrain line-of-sight, dwell time,
+signal quality, track coasting, target closure, bearing/elevation, health, and a
+ballistic lead solution now drive the target presentation. Hellfire launch requires
+a solid unmasked track. This represents the workflow and information hierarchy; it
+does not claim to reproduce classified Apache sensor or weapon algorithms.
+
+Decision: derive HUD values in a dedicated 60 Hz flight-data computer. It separates
+air-relative speed from ground speed, computes ground track and drift, waypoint
+bearing/range/estimated time en route, attitude/rates/load factor, and modeled
+powertrain values including torque, power margin, and fuel endurance. The UI groups
+these into FLT, NAV, POWER, mission, and TADS modules with named modes so numbers are
+internally consistent rather than independent decorative gauges.
+
 ## Rendering and world systems
 
 Babylon.js was selected for its first-party support for WebGPU and WebGL fallback,

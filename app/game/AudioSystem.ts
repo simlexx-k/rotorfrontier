@@ -155,6 +155,23 @@ export class AudioSystem {
     this.thump(54, 19, 0.48, Math.min(0.38, 0.22 * strength));
   }
 
+  hitConfirm(destroyed = false) {
+    const context = this.context;
+    const master = this.master;
+    if (!context || !master) return;
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "square";
+    oscillator.frequency.setValueAtTime(destroyed ? 820 : 1_140, now);
+    oscillator.frequency.exponentialRampToValueAtTime(destroyed ? 510 : 880, now + 0.075);
+    gain.gain.setValueAtTime(0.018, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+    oscillator.connect(gain).connect(master);
+    oscillator.start(now);
+    oscillator.stop(now + 0.09);
+  }
+
   suspend() { void this.context?.suspend(); }
   resume() { void this.context?.resume(); }
 

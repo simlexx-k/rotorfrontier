@@ -8,8 +8,10 @@ need an application database or gameplay server.
 flowchart TD
   Shell[React game shell] --> Runtime[Game runtime]
   Runtime --> Flight[60 Hz flight model]
+  Flight --> FDC[Flight data computer]
   Runtime --> World[Babylon world and cameras]
   Runtime --> Combat[Combat and damage]
+  Combat --> Sensor[Target tracker]
   Runtime --> Director[Mission director]
   Runtime --> Input[Unified input]
   Runtime --> Audio[Sampled and modeled audio]
@@ -100,7 +102,24 @@ weapon system to perform target selection and collision without coupling to mesh
 
 Player weapons use pooled lifecycle arrays with explicit disposal. Hellfires steer
 toward a live target, Hydras follow gravity-biased ballistics, and cannon rounds use
-high-speed traces. Damage is component-aware for the player and health-based for AI.
+high-speed traces. Swept segment/sphere tests prevent fast rounds from tunnelling
+between fixed updates. Damage is component-aware for the player and health-based for AI.
+
+`TargetTracker` owns target selection and track state independently of rendering.
+Contacts must be alive, in sensor range, within the sensor field of regard, and clear
+of sampled terrain. Valid signal increases track quality through acquiring and
+tracking to locked; masking or leaving the field causes a timed coast and decay rather
+than an immediate disappearance. The track computer derives closure, bearing,
+relative azimuth, elevation, target health, and a cannon intercept point. Hellfire
+launch authorization reads the same lock state shown to the player.
+
+`FlightDataComputer` runs in the fixed simulation loop and derives air-relative TAS,
+ground speed/track, drift, vertical speed, attitude, turn rate, smoothed normal load,
+mode, modeled torque/power margin/endurance, and waypoint bearing/range/ETE. React
+receives a coherent snapshot with the rest of the 12.5 Hz telemetry. Target and lead
+positions are projected from the active Babylon camera into normalized HUD space.
+Combat hits and incoming impacts bypass the slower telemetry sampler through short
+event callbacks, ensuring every confirmation and directional damage cue is visible.
 
 ## Networking
 

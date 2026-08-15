@@ -7,6 +7,10 @@ export type InputDevice = "keyboard-mouse" | "gamepad";
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "debrief";
 export type WeaponType = "cannon" | "hydra" | "hellfire";
 export type NetworkStatus = "offline" | "hosting" | "joining" | "connecting" | "connected" | "failed";
+export type TargetTrackState = "none" | "acquiring" | "tracking" | "locked" | "masked" | "lost";
+export type FlightMode = "ground" | "hover" | "climb" | "descent" | "cruise";
+export type MissionPhase = "nav" | "hold" | "engage" | "rtb" | "complete";
+export type CombatUiEventKind = "hit" | "critical" | "kill" | "damaged" | "impact";
 
 export interface MissionDefinition {
   id: MissionId;
@@ -71,6 +75,35 @@ export interface ControlFrame {
   device: InputDevice;
 }
 
+export interface FlightDataTelemetry {
+  mode: FlightMode;
+  trueAirspeed: number;
+  groundSpeed: number;
+  course: number;
+  drift: number;
+  verticalSpeed: number;
+  pitch: number;
+  roll: number;
+  turnRate: number;
+  loadFactor: number;
+  torque: number;
+  enginePower: number;
+  powerMargin: number;
+  fuelEnduranceMinutes: number;
+  waypointActive: boolean;
+  waypointBearing: number;
+  waypointRange: number;
+  waypointEtaSeconds: number;
+}
+
+export interface CombatUiEvent {
+  id: number;
+  kind: CombatUiEventKind;
+  label: string;
+  damage?: number;
+  direction?: number;
+}
+
 export interface FlightTelemetry {
   altitude: number;
   radarAltitude: number;
@@ -94,12 +127,29 @@ export interface FlightTelemetry {
   objective: string;
   objectiveProgress: number;
   objectiveDetail: string;
+  missionPhase: MissionPhase;
   cannonAmmo: number;
   rockets: number;
   missiles: number;
   selectedWeapon: WeaponType;
   targetName: string;
   targetDistance: number;
+  targetKind: "helicopter" | "armour" | "sam" | "none";
+  targetState: TargetTrackState;
+  targetQuality: number;
+  targetHealth: number;
+  targetClosure: number;
+  targetBearing: number;
+  targetRelativeBearing: number;
+  targetElevation: number;
+  targetLineOfSight: boolean;
+  targetVisible: boolean;
+  targetScreenX: number;
+  targetScreenY: number;
+  leadVisible: boolean;
+  leadScreenX: number;
+  leadScreenY: number;
+  flightData: FlightDataTelemetry;
   threatLevel: "clear" | "tracking" | "missile";
   kills: number;
   score: number;
@@ -123,6 +173,7 @@ export interface RuntimeCallbacks {
   onTelemetry: (telemetry: FlightTelemetry) => void;
   onPause: (paused: boolean) => void;
   onNotice: (message: string) => void;
+  onCombatEvent: (event: CombatUiEvent) => void;
   onFatal: (message: string) => void;
   onMissionComplete: (result: MissionResult) => void;
 }

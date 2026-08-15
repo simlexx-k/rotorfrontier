@@ -1,5 +1,5 @@
 import { Vector3 } from "@babylonjs/core";
-import type { MissionDefinition } from "./types";
+import type { MissionDefinition, MissionPhase } from "./types";
 
 export interface MissionSignals {
   playerPosition: Vector3;
@@ -15,6 +15,9 @@ export interface MissionState {
   detail: string;
   progress: number;
   completed: boolean;
+  phase: MissionPhase;
+  waypoint: Vector3 | null;
+  holdRemaining: number;
 }
 
 const base = new Vector3(0, 0, 120);
@@ -31,6 +34,9 @@ export class MissionDirector {
       detail: "Follow the navigation marker",
       progress: 0,
       completed: false,
+      phase: "nav",
+      waypoint: null,
+      holdRemaining: 0,
     };
   }
 
@@ -62,6 +68,9 @@ export class MissionDirector {
       detail: close ? `Maintain position · ${Math.max(0, requiredHold - this.holdTime).toFixed(1)} s` : `${Math.round(distance)} m to waypoint`,
       progress: (this.phase + Math.min(1, this.holdTime / requiredHold)) / points.length,
       completed: false,
+      phase: close ? "hold" : this.phase === 2 ? "rtb" : "nav",
+      waypoint: points[this.phase].clone(),
+      holdRemaining: close ? Math.max(0, requiredHold - this.holdTime) : 0,
     };
     if (this.holdTime >= requiredHold) {
       this.phase += 1;
@@ -78,6 +87,9 @@ export class MissionDirector {
         detail: `${signals.destroyedGround} / ${required} ground targets disabled`,
         progress: Math.min(0.82, signals.destroyedGround / required * 0.82),
         completed: false,
+        phase: "engage",
+        waypoint: new Vector3(1820, 0, 1020),
+        holdRemaining: 0,
       };
       if (signals.destroyedGround >= required) this.phase = 1;
       return;
@@ -88,6 +100,9 @@ export class MissionDirector {
       detail: `${Math.round(distance)} m to landing zone`,
       progress: 0.82 + (1 - Math.min(1, distance / 2800)) * 0.18,
       completed: false,
+      phase: "rtb",
+      waypoint: base.clone(),
+      holdRemaining: 0,
     };
     if (distance < 95 && signals.speed < 18) this.finish();
   }
@@ -101,6 +116,9 @@ export class MissionDirector {
         detail: `${Math.round(distance)} m to extraction beacon`,
         progress: (1 - Math.min(1, distance / 3600)) * 0.48,
         completed: false,
+        phase: "nav",
+        waypoint: zone.clone(),
+        holdRemaining: 0,
       };
       if (distance < 120) this.phase = 1;
       return;
@@ -113,6 +131,9 @@ export class MissionDirector {
         detail: stable ? `${Math.max(0, 22 - this.holdTime).toFixed(1)} s until team aboard` : "Reduce speed and descend below 45 m",
         progress: 0.48 + Math.min(1, this.holdTime / 22) * 0.34,
         completed: false,
+        phase: "hold",
+        waypoint: zone.clone(),
+        holdRemaining: Math.max(0, 22 - this.holdTime),
       };
       if (this.holdTime >= 22) this.phase = 2;
       return;
@@ -123,6 +144,9 @@ export class MissionDirector {
       detail: `${Math.round(distance)} m to safety`,
       progress: 0.82 + (1 - Math.min(1, distance / 3000)) * 0.18,
       completed: false,
+      phase: "rtb",
+      waypoint: base.clone(),
+      holdRemaining: 0,
     };
     if (distance < 95 && signals.speed < 18) this.finish();
   }
@@ -134,6 +158,9 @@ export class MissionDirector {
       detail: "Mission objectives secured",
       progress: 1,
       completed: true,
+      phase: "complete",
+      waypoint: null,
+      holdRemaining: 0,
     };
   }
 

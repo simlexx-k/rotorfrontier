@@ -8,6 +8,11 @@ import {
   Vector3,
 } from "@babylonjs/core";
 import type { WeaponType } from "./types";
+import {
+  segmentSphereHit,
+  TargetTracker,
+  type SensorFrame,
+} from "./TargetTracker";
 import { terrainHeight } from "./WorldBuilder";
 
 export interface CombatTarget {
@@ -17,6 +22,7 @@ export interface CombatTarget {
   position: Vector3;
   velocity: Vector3;
   health: number;
+  maxHealth?: number;
   alive: boolean;
   radius: number;
   applyDamage: (amount: number) => void;
@@ -40,7 +46,16 @@ interface Explosion {
 }
 
 export interface CombatCallbacks {
-  onPlayerDamage: (amount: number, source: string) => void;
+  onPlayerDamage: (amount: number, source: string, origin: Vector3) => void;
+  onTargetHit: (event: {
+    targetName: string;
+    targetKind: CombatTarget["kind"];
+    weapon: WeaponType;
+    damage: number;
+    destroyed: boolean;
+    healthPercent: number;
+    position: Vector3;
+  }) => void;
   onExplosion: (position: Vector3, intensity: number) => void;
   onNotice: (message: string) => void;
 }
@@ -50,9 +65,8 @@ export class CombatSystem {
   rockets = 38;
   missiles = 8;
   selectedWeapon: WeaponType = "hydra";
-  selectedTargetId = "";
   threatLevel: "clear" | "tracking" | "missile" = "clear";
-  private readonly sensorRange: number;
+  private readonly tracker: TargetTracker;
   private readonly projectiles: Projectile[] = [];
   private readonly explosions: Explosion[] = [];
   private readonly materials: Record<string, StandardMaterial>;
@@ -66,7 +80,7 @@ export class CombatSystem {
     this.cannonAmmo += weaponUpgrade * 120;
     this.rockets += weaponUpgrade * 4;
     this.missiles += Math.floor(weaponUpgrade / 2) * 2;
-    this.sensorRange = 1500 + sensorUpgrade * 360;
+    this.tracker = new TargetTracker(1500 + sensorUpgrade * 360, terrainHeight);
     this.materials = {
       tracer: this.glowMaterial("tracer-material", new Color3(1, 0.72, 0.18)),
       rocket: this.glowMaterial("rocket-material", new Color3(1, 0.25, 0.04)),
@@ -74,6 +88,10 @@ export class CombatSystem {
       enemy: this.glowMaterial("enemy-tracer-material", new Color3(1, 0.08, 0.03)),
       explosion: this.glowMaterial("explosion-material", new Color3(1, 0.24, 0.03)),
     };
+  }
+
+  get selectedTargetId() {
+    return this.tracker.selectedTargetId;
   }
 
   fireCannon(origin: Vector3, direction: Vector3, inheritedVelocity: Vector3, team: "player" | "remote" = "player") {
@@ -106,8 +124,8 @@ export class CombatSystem {
     }
     if (this.missiles <= 0) return false;
     const target = targets.find((candidate) => candidate.id === this.selectedTargetId && candidate.alive);
-    if (!target) {
-      this.callbacks.onNotice("No valid Hellfire lock");
+    if (!target || !this.tracker.hasWeaponLock) {
+      this.callbacks.onNotice(target ? "Hellfire requires a solid TADS track" : "No valid Hellfire target");
       return false;
     }
     this.missiles -= 1;
@@ -159,19 +177,17 @@ export class CombatSystem {
     this.callbacks.onNotice(`${this.selectedWeapon.toUpperCase()} selected`);
   }
 
-  cycleTarget(targets: CombatTarget[], playerPosition: Vector3) {
-    const available = targets
-      .filter((target) => target.alive && Vector3.Distance(target.position, playerPosition) <= this.sensorRange)
-      .sort((a, b) => Vector3.DistanceSquared(a.position, playerPosition) - Vector3.DistanceSquared(b.position, playerPosition));
-    if (!available.length) {
-      this.selectedTargetId = "";
+  cycleTarget(targets: CombatTarget[], frame: Pick<SensorFrame, "position" | "forward">) {
+    const target = this.tracker.cycle(targets, frame);
+    if (!target) {
       this.callbacks.onNotice("No targets detected");
       return;
     }
-    const current = available.findIndex((target) => target.id === this.selectedTargetId);
-    const next = available[(current + 1) % available.length];
-    this.selectedTargetId = next.id;
-    this.callbacks.onNotice(`Target locked · ${next.name}`);
+    this.callbacks.onNotice(`TADS acquiring · ${target.name}`);
+  }
+
+  updateSensors(delta: number, frame: SensorFrame, targets: CombatTarget[]) {
+    return this.tracker.update(delta, frame, targets, 390);
   }
 
   update(delta: number, playerPosition: Vector3, targets: CombatTarget[]) {
@@ -192,28 +208,57 @@ export class CombatSystem {
         projectile.velocity.copyFrom(Vector3.Lerp(projectile.velocity, desired, 1 - Math.exp(-delta * 1.7)));
       }
       if (projectile.kind === "hydra") projectile.velocity.y -= 5.2 * delta;
-      projectile.mesh.position.addInPlace(projectile.velocity.scale(delta));
-      const ground = terrainHeight(projectile.mesh.position.x, projectile.mesh.position.z);
-      let hit = projectile.mesh.position.y <= ground;
+      const previousPosition = projectile.mesh.position.clone();
+      const nextPosition = previousPosition.add(projectile.velocity.scale(delta));
+      projectile.mesh.position.copyFrom(nextPosition);
+      const ground = terrainHeight(nextPosition.x, nextPosition.z);
+      let hit = nextPosition.y <= ground;
+      let hitTarget = false;
 
       if (projectile.team === "enemy") {
-        const distance = Vector3.Distance(projectile.mesh.position, playerPosition);
+        const distance = Vector3.Distance(nextPosition, playerPosition);
         if (projectile.kind === "enemy-missile" && distance < 720) this.threatLevel = "missile";
         else if (distance < 180 && this.threatLevel === "clear") this.threatLevel = "tracking";
-        if (distance < 4.5) {
-          this.callbacks.onPlayerDamage(projectile.damage, "hostile fire");
+        const playerHit = segmentSphereHit(previousPosition, nextPosition, playerPosition, 4.5);
+        if (playerHit.hit) {
+          projectile.mesh.position.copyFrom(playerHit.point);
+          this.callbacks.onPlayerDamage(projectile.damage, "hostile fire", previousPosition);
           hit = true;
         }
       } else {
         for (const target of targets) {
-          if (!target.alive || Vector3.DistanceSquared(projectile.mesh.position, target.position) > target.radius * target.radius) continue;
+          if (!target.alive) continue;
+          const collision = segmentSphereHit(
+            previousPosition,
+            nextPosition,
+            target.position,
+            target.radius,
+          );
+          if (!collision.hit) continue;
+          projectile.mesh.position.copyFrom(collision.point);
           target.applyDamage(projectile.damage);
           hit = true;
+          hitTarget = true;
+          if (projectile.team === "player") {
+            const maximumHealth = Math.max(1, target.maxHealth ?? target.health + projectile.damage);
+            this.callbacks.onTargetHit({
+              targetName: target.name,
+              targetKind: target.kind,
+              weapon: projectile.kind as WeaponType,
+              damage: projectile.damage,
+              destroyed: !target.alive,
+              healthPercent: Math.max(0, target.health / maximumHealth * 100),
+              position: collision.point,
+            });
+          }
           break;
         }
       }
 
       if (hit || projectile.life <= 0) {
+        if (hitTarget && projectile.kind === "cannon") {
+          this.explode(projectile.mesh.position, 0.18, false);
+        }
         if (hit && projectile.kind !== "cannon" && projectile.kind !== "enemy-round") {
           this.explode(projectile.mesh.position, projectile.kind === "hellfire" ? 1.35 : 0.9);
         }
@@ -239,14 +284,11 @@ export class CombatSystem {
     }
   }
 
-  targetInfo(targets: CombatTarget[], playerPosition: Vector3) {
-    const target = targets.find((candidate) => candidate.id === this.selectedTargetId && candidate.alive);
-    return target
-      ? { name: target.name, distance: Vector3.Distance(playerPosition, target.position) }
-      : { name: "NO TARGET", distance: 0 };
+  targetInfo() {
+    return this.tracker.track;
   }
 
-  explode(position: Vector3, intensity = 1) {
+  explode(position: Vector3, intensity = 1, notify = true) {
     const mesh = MeshBuilder.CreateSphere("explosion", { diameter: 1.5, segments: 8 }, this.scene);
     mesh.position.copyFrom(position);
     mesh.material = this.materials.explosion.clone(`explosion-${performance.now()}`);
@@ -255,7 +297,7 @@ export class CombatSystem {
     light.range = 80 * intensity;
     const duration = 0.42 * intensity;
     this.explosions.push({ mesh, light, life: duration, duration });
-    this.callbacks.onExplosion(position, intensity);
+    if (notify) this.callbacks.onExplosion(position, intensity);
   }
 
   dispose() {

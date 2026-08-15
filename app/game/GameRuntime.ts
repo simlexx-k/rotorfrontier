@@ -4,6 +4,7 @@ import {
   DefaultRenderingPipeline,
   Engine,
   FreeCamera,
+  Matrix,
   MeshBuilder,
   Quaternion,
   Scene,
@@ -16,12 +17,15 @@ import { createPlayerHelicopter, type PlayerHelicopterVisual } from "./AircraftF
 import { AudioSystem } from "./AudioSystem";
 import { CombatSystem } from "./CombatSystem";
 import { FLIGHT_GROUND_CLEARANCE_METRES, FlightModel } from "./FlightModel";
+import { EMPTY_FLIGHT_DATA, FlightDataComputer } from "./FlightDataComputer";
 import { InputManager } from "./InputManager";
 import { MissionDirector, type MissionState } from "./MissionDirector";
 import type { NetworkSession } from "./NetworkSession";
 import type {
   CameraMode,
   CareerProfile,
+  CombatUiEventKind,
+  FlightDataTelemetry,
   FlightTelemetry,
   GameSettings,
   MissionDefinition,
@@ -50,6 +54,8 @@ export class GameRuntime {
   private director: MissionDirector | null = null;
   private missionState: MissionState;
   private readonly flight: FlightModel;
+  private readonly flightDataComputer = new FlightDataComputer();
+  private flightData: FlightDataTelemetry = { ...EMPTY_FLIGHT_DATA };
   private readonly audio = new AudioSystem();
   private readonly maxHull: number;
   private cameraMode: CameraMode = "chase";
@@ -70,6 +76,7 @@ export class GameRuntime {
   private score = 0;
   private resultSent = false;
   private completionDelay = 0;
+  private combatEventId = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -87,6 +94,9 @@ export class GameRuntime {
       detail: "Follow the navigation marker",
       progress: 0,
       completed: false,
+      phase: "nav",
+      waypoint: null,
+      holdRemaining: 0,
     };
   }
 
@@ -126,7 +136,20 @@ export class GameRuntime {
       this.combat = new CombatSystem(
         this.scene,
         {
-          onPlayerDamage: (amount, source) => this.damagePlayer(amount, source),
+          onPlayerDamage: (amount, source, origin) => this.damagePlayer(amount, source, origin),
+          onTargetHit: (event) => {
+            this.audio.hitConfirm(event.destroyed);
+            const kind: CombatUiEventKind = event.destroyed
+              ? "kill"
+              : event.healthPercent <= 28
+                ? "critical"
+                : "hit";
+            this.emitCombatEvent(
+              kind,
+              event.destroyed ? "TARGET DESTROYED" : kind === "critical" ? "CRITICAL HIT" : "HIT CONFIRMED",
+              event.damage,
+            );
+          },
           onExplosion: (position, intensity) => {
             this.audio.explosion(intensity);
             if (Vector3.Distance(position, this.flight.position) < 120) {
@@ -259,7 +282,11 @@ export class GameRuntime {
     if (this.input.consume("camera")) this.cycleCamera();
     if (this.input.consume("weapon")) this.combat?.cycleWeapon();
     if (this.input.consume("target")) {
-      this.combat?.cycleTarget(this.ai?.targets ?? [], this.flight.position);
+      const forward = Vector3.Forward().applyRotationQuaternion(this.flight.rotation);
+      this.combat?.cycleTarget(this.ai?.targets ?? [], {
+        position: this.flight.position,
+        forward,
+      });
     }
     if (this.input.consume("hover")) {
       this.flight.hoverAssist = !this.flight.hoverAssist;
@@ -305,6 +332,12 @@ export class GameRuntime {
     const forward = Vector3.Forward().applyRotationQuaternion(this.flight.rotation);
     const up = Vector3.Up().applyRotationQuaternion(this.flight.rotation);
     const muzzle = this.flight.position.add(forward.scale(3.2)).subtract(up.scale(0.38));
+    this.ai.update(delta, this.flight.position, this.flight.velocity);
+    this.combat.updateSensors(delta, {
+      position: this.flight.position,
+      velocity: this.flight.velocity,
+      forward,
+    }, this.ai.targets);
     this.cannonCooldown -= delta;
     this.secondaryCooldown -= delta;
     if (controls.firePrimary && this.cannonCooldown <= 0) {
@@ -340,7 +373,6 @@ export class GameRuntime {
       }
     }
 
-    this.ai.update(delta, this.flight.position, this.flight.velocity);
     this.combat.update(delta, this.flight.position, this.ai.targets);
 
     if (result.hardLanding) {
@@ -348,6 +380,11 @@ export class GameRuntime {
       void this.input.pulse(Math.min(1, result.impact / 12), 0.7, 180);
       this.callbacks.onNotice(
         result.impact > 9 ? "Hard impact — systems damaged" : "Hard landing",
+      );
+      this.emitCombatEvent(
+        "impact",
+        result.impact > 9 ? "HARD IMPACT · SYSTEM DAMAGE" : "HARD LANDING",
+        Math.round(result.impact),
       );
     }
 
@@ -358,6 +395,26 @@ export class GameRuntime {
       destroyedAir: this.ai.destroyedAir,
       destroyedGround: this.ai.destroyedGround,
       remainingEnemies: this.ai.remainingEnemies,
+    });
+    const currentGround = terrainHeight(this.flight.position.x, this.flight.position.z);
+    this.flightData = this.flightDataComputer.update(delta, {
+      position: this.flight.position,
+      velocity: this.flight.velocity,
+      rotation: this.flight.rotation,
+      wind: this.world.wind,
+      heading: this.flight.heading,
+      pitch: this.flight.pitch,
+      roll: this.flight.roll,
+      yawRate: this.flight.yawRate,
+      collective: this.flight.collective,
+      rotorRpm: this.flight.rotorRpm,
+      engine: this.flight.engine,
+      fuel: this.flight.fuel,
+      radarAltitudeMetres: Math.max(
+        0,
+        this.flight.position.y - currentGround - FLIGHT_GROUND_CLEARANCE_METRES,
+      ),
+      waypoint: this.missionState.waypoint,
     });
     if (this.missionState.completed) {
       this.completionDelay += delta;
@@ -428,18 +485,17 @@ export class GameRuntime {
     const ground = terrainHeight(this.flight.position.x, this.flight.position.z);
     const hours = Math.floor(this.world?.timeOfDay ?? 0);
     const minutes = Math.floor(((this.world?.timeOfDay ?? 0) % 1) * 60);
-    const target = this.combat?.targetInfo(this.ai?.targets ?? [], this.flight.position) ?? {
-      name: "NO TARGET",
-      distance: 0,
-    };
+    const target = this.combat?.targetInfo();
+    const targetScreen = this.projectHudPoint(target?.position ?? null);
+    const leadScreen = this.projectHudPoint(target?.leadPoint ?? null);
     return {
       altitude: this.flight.position.y * 3.28084,
       radarAltitude: Math.max(
         0,
         (this.flight.position.y - ground - FLIGHT_GROUND_CLEARANCE_METRES) * 3.28084,
       ),
-      airspeed: this.flight.airspeed,
-      verticalSpeed: this.flight.verticalSpeed,
+      airspeed: this.flightData.trueAirspeed,
+      verticalSpeed: this.flightData.verticalSpeed,
       heading: this.flight.heading,
       collective: this.flight.collective * 100,
       rotorRpm: this.flight.rotorRpm * 100,
@@ -458,12 +514,29 @@ export class GameRuntime {
       objective: this.missionState.objective,
       objectiveProgress: this.missionState.progress,
       objectiveDetail: this.missionState.detail,
+      missionPhase: this.missionState.phase,
       cannonAmmo: this.combat?.cannonAmmo ?? 0,
       rockets: this.combat?.rockets ?? 0,
       missiles: this.combat?.missiles ?? 0,
       selectedWeapon: this.combat?.selectedWeapon ?? "hydra",
-      targetName: target.name,
-      targetDistance: target.distance,
+      targetName: target?.name ?? "NO TARGET",
+      targetDistance: target?.distance ?? 0,
+      targetKind: target?.kind ?? "none",
+      targetState: target?.state ?? "none",
+      targetQuality: (target?.quality ?? 0) * 100,
+      targetHealth: target?.healthPercent ?? 0,
+      targetClosure: target?.closureRate ?? 0,
+      targetBearing: target?.bearing ?? 0,
+      targetRelativeBearing: target?.relativeBearing ?? 0,
+      targetElevation: target?.elevation ?? 0,
+      targetLineOfSight: target?.lineOfSight ?? false,
+      targetVisible: targetScreen.visible,
+      targetScreenX: targetScreen.x,
+      targetScreenY: targetScreen.y,
+      leadVisible: leadScreen.visible && (target?.quality ?? 0) >= 0.28,
+      leadScreenX: leadScreen.x,
+      leadScreenY: leadScreen.y,
+      flightData: { ...this.flightData },
       threatLevel: this.combat?.threatLevel ?? "clear",
       kills: this.kills,
       score: this.score,
@@ -472,13 +545,59 @@ export class GameRuntime {
     };
   }
 
-  private damagePlayer(amount: number, source: string) {
+  private projectHudPoint(point: Vector3 | null) {
+    if (!point || !this.camera || !this.scene || !this.engine) {
+      return { x: 50, y: 50, visible: false };
+    }
+    const width = Math.max(1, this.engine.getRenderWidth());
+    const height = Math.max(1, this.engine.getRenderHeight());
+    const viewport = this.camera.viewport.toGlobal(width, height);
+    const projected = Vector3.Project(
+      point,
+      Matrix.IdentityReadOnly,
+      this.scene.getTransformMatrix(),
+      viewport,
+    );
+    const x = projected.x / width * 100;
+    const y = projected.y / height * 100;
+    return {
+      x,
+      y,
+      visible: projected.z > 0 && projected.z < 1 && x > 1.5 && x < 98.5 && y > 2 && y < 98,
+    };
+  }
+
+  private damagePlayer(amount: number, source: string, origin: Vector3) {
     const mitigation = 1 - this.career.upgrades.armour * 0.075;
     this.flight.hull = Math.max(0, this.flight.hull - amount * mitigation);
     this.flight.engine = Math.max(20, this.flight.engine - amount * 0.08);
     this.audio.impact(Math.min(1, amount / 16));
     void this.input?.pulse(Math.min(1, amount / 12), 0.65, 130);
     this.callbacks.onNotice(`Hit by ${source}`);
+    const sourceDirection = origin.subtract(this.flight.position).normalize();
+    const forward = Vector3.Forward().applyRotationQuaternion(this.flight.rotation);
+    const right = Vector3.Right().applyRotationQuaternion(this.flight.rotation);
+    const direction = Math.atan2(
+      Vector3.Dot(sourceDirection, right),
+      Vector3.Dot(sourceDirection, forward),
+    ) * 180 / Math.PI;
+    this.emitCombatEvent("damaged", "INCOMING HIT", Math.round(amount), direction);
+  }
+
+  private emitCombatEvent(
+    kind: CombatUiEventKind,
+    label: string,
+    damage?: number,
+    direction?: number,
+  ) {
+    this.combatEventId += 1;
+    this.callbacks.onCombatEvent({
+      id: this.combatEventId,
+      kind,
+      label,
+      damage,
+      direction,
+    });
   }
 
   private finishMission(success: boolean) {
