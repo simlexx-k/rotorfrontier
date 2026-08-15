@@ -687,7 +687,8 @@ export default function GameShell() {
             button to toggle the advanced persistent-collective flight model. TADS
             automatically prioritizes visible hostile helicopters, builds a weapon
             lock, and reacquires after a takedown; wheel, Tab, N/M or D-pad up manually
-            overrides the selected contact.
+            overrides the selected contact. Camera V/Y cycles chase, cockpit and a
+            stabilized rear-quarter view; none of the flight cameras auto-orbit.
           </p>
           <div className="controls-grid">
             {CONTROL_REFERENCE.map(([label, binding]) => (

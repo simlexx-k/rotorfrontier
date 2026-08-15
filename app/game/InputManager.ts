@@ -29,6 +29,9 @@ export const mapDeviceCyclic = (horizontal: number, vertical: number, invertY: b
   roll: clamp(-horizontal),
 });
 
+export const mapGamepadYaw = (leftShoulder: GamepadButton | undefined, rightShoulder: GamepadButton | undefined) =>
+  Number(Boolean(rightShoulder?.pressed)) - Number(Boolean(leftShoulder?.pressed));
+
 export class InputManager {
   private readonly keys = new Set<string>();
   private readonly mouseButtons = new Set<number>();
@@ -44,6 +47,9 @@ export class InputManager {
     window.addEventListener("keydown", this.onKeyDown, { passive: false });
     window.addEventListener("keyup", this.onKeyUp);
     window.addEventListener("mousemove", this.onMouseMove);
+    window.addEventListener("blur", this.onFocusLost);
+    document.addEventListener("visibilitychange", this.onVisibilityChange);
+    document.addEventListener("pointerlockchange", this.onPointerLockChange);
     canvas.addEventListener("mousedown", this.onMouseDown);
     window.addEventListener("mouseup", this.onMouseUp);
     canvas.addEventListener("contextmenu", this.preventContextMenu);
@@ -54,6 +60,9 @@ export class InputManager {
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
     window.removeEventListener("mousemove", this.onMouseMove);
+    window.removeEventListener("blur", this.onFocusLost);
+    document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    document.removeEventListener("pointerlockchange", this.onPointerLockChange);
     this.canvas.removeEventListener("mousedown", this.onMouseDown);
     window.removeEventListener("mouseup", this.onMouseUp);
     this.canvas.removeEventListener("contextmenu", this.preventContextMenu);
@@ -111,7 +120,10 @@ export class InputManager {
         const stickCyclic = mapDeviceCyclic(leftX, leftY, this.settings.invertY);
         roll = stickCyclic.roll;
         pitch = stickCyclic.pitch;
-        yaw = (gamepad.buttons[5]?.value ?? 0) - (gamepad.buttons[4]?.value ?? 0);
+        // Standard-mapped shoulder buttons are digital. Reading their analogue
+        // `value` can expose tiny non-zero hardware noise as a permanent yaw
+        // command on some controllers, so only an actual pressed state turns.
+        yaw = mapGamepadYaw(gamepad.buttons[4], gamepad.buttons[5]);
         collective = rightTrigger - leftTrigger;
         lookX = rightX;
         lookY = rightY;
@@ -134,6 +146,13 @@ export class InputManager {
 
   setFlightAssist(enabled: boolean) {
     this.assistEnabled = enabled;
+  }
+
+  releaseControls() {
+    this.keys.clear();
+    this.mouseButtons.clear();
+    this.mouseDeltaX = 0;
+    this.mouseDeltaY = 0;
   }
 
   async pulse(strong = 0.5, weak = 0.25, duration = 90) {
@@ -191,6 +210,13 @@ export class InputManager {
     if (document.pointerLockElement !== this.canvas) void this.canvas.requestPointerLock();
   };
   private onMouseUp = (event: MouseEvent) => { this.mouseButtons.delete(event.button); };
+  private onFocusLost = () => this.releaseControls();
+  private onVisibilityChange = () => {
+    if (document.hidden) this.releaseControls();
+  };
+  private onPointerLockChange = () => {
+    if (document.pointerLockElement !== this.canvas) this.releaseControls();
+  };
   private onWheel = (event: WheelEvent) => {
     event.preventDefault();
     if (Math.abs(event.deltaY) > 0.5) this.pressed.add("target");

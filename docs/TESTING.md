@@ -16,7 +16,7 @@ This runs:
 4. Node tests for career immutability/progression, mission transitions, hard
    landing damage, stable ground start, hold-to-command Nairobi-altitude liftoff,
    hover capture, assisted directional response and braking, advanced persistent
-   collective, terrain non-penetration, input-axis mapping, Nairobi XYZ/provider
+   collective, terrain non-penetration, yaw release/focus safety, input-axis mapping, Nairobi XYZ/provider
    decoding, Apache rotor/orientation assets, audio delivery, attribution, the
    token-free real-terrain default, swept projectile collision, intercept solutions,
    terrain masking, sensor dwell/lock/coast behavior, helicopter-first automatic
@@ -34,15 +34,15 @@ npm run lint
 | Area | Required pass |
 |---|---|
 | Renderer | WebGPU launch, forced WebGL fallback, low/high/auto quality |
-| Keyboard/mouse | Pointer lock, all axes, both weapons, target, camera, pause |
-| Controllers | Xbox standard mapping, DualSense/DualShock mapping, haptics fallback |
+| Keyboard/mouse | Pointer lock, all axes, release Q/E across blur/pause, both weapons, target, camera |
+| Controllers | Xbox standard mapping, DualSense/DualShock mapping, neutral shoulder yaw, haptics fallback |
 | Missions | All stages, victory debrief, loss debrief, score and save update |
 | Combat | Cannon/Hydra/Hellfire, ammo depletion, auto helicopter lock/reacquire, manual override, acquire/track/lock/mask/lost, lead cue, SAM warning |
 | Feedback | Projectile streaks, exhaust/smoke, shockwaves, falling wreck/crash blast, radar/edge contacts, hit/critical/takedown markers, impact vignette, haptics and tones |
 | Avionics | TAS/GS split, attitude, load, torque/margin, NAV bearing/range/ETE, mission modes |
 | Career | Reload persistence, insufficient funds, max tier, stat accumulation |
 | Co-op | Host/join in two browsers, pose smoothing, weapon events, disconnect |
-| Lifecycle | Background auto-pause, resize, pointer release, repeated sortie disposal |
+| Lifecycle | Background auto-pause, focus-loss input release, resize, pointer release, repeated sortie disposal |
 | PWA | Install prompt eligibility, reload update, offline cached shell |
 | Real terrain | Nairobi DEM alignment, MSL altitude, map attribution, provider fallback |
 | Flight regression | Ground spawn, Space/RT liftoff, hover capture, WASD/stick translation, auto-brake, advanced collective, slope contact |

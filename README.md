@@ -44,7 +44,8 @@ keyboard and mouse or a standard-layout game controller.
   engine, armour, sensor, and stores upgrades
 - Two-player WebRTC co-op using a low-latency unreliable flight-state channel and a
   reliable combat-event channel; no account or central game server required
-- Cockpit, chase, and cinematic cameras; pointer lock; adaptive WebGPU/WebGL 2
+- Cockpit, chase, and stabilized cinematic cameras with focus-loss input release;
+  pointer lock; adaptive WebGPU/WebGL 2
   rendering; FXAA, bloom, dynamic quality selection, and compressed Web Audio
 - Licensed sampled rotor, M230 cannon, and rocket recordings with RPM/load-responsive
   filtering, modeled turbine and low-frequency layers, and dynamic-range control

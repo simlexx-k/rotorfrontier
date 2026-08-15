@@ -97,6 +97,9 @@ export class FlightModel {
       controls.yaw * (this.hoverAssist ? 1.18 : 0.95),
       dt * (this.hoverAssist ? 6.2 : 3.8),
     );
+    if (Math.abs(controls.yaw) < 0.001 && Math.abs(this.yawRate) < 0.0025) {
+      this.yawRate = 0;
+    }
 
     this.pitch = clamp(this.pitch + this.pitchRate * dt, -0.72, 0.72);
     this.roll = clamp(this.roll + this.rollRate * dt, -0.92, 0.92);

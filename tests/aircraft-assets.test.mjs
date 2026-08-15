@@ -71,3 +71,15 @@ test("weapon effects and helicopter takedown visuals ship in the combat runtime"
   assert.match(ai, /updateDestroyed/);
   assert.match(ai, /wreck impact|onCrash/);
 });
+
+test("external camera and transient controls cannot leave the aircraft revolving", async () => {
+  const runtime = await readFile("app/game/GameRuntime.ts", "utf8");
+  const input = await readFile("app/game/InputManager.ts", "utf8");
+
+  assert.doesNotMatch(runtime, /performance\.now\(\) \* 0\.00013/);
+  assert.match(runtime, /stable rear-quarter shot/);
+  assert.match(runtime, /this\.input\?\.releaseControls\(\)/);
+  assert.match(input, /window\.addEventListener\("blur", this\.onFocusLost\)/);
+  assert.match(input, /pointerlockchange/);
+  assert.match(input, /mapGamepadYaw/);
+});

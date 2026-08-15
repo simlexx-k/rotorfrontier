@@ -16,6 +16,7 @@ import {
   mapDeviceCyclic,
   mapDigitalCollective,
   mapDigitalCyclic,
+  mapGamepadYaw,
 } from "../app/game/InputManager.ts";
 import { MissionDirector } from "../app/game/MissionDirector.ts";
 import {
@@ -68,6 +69,9 @@ test("keyboard, mouse and gamepad cyclic axes map to aircraft-relative motion", 
   assert.equal(mapDigitalCollective(true, false), 1);
   assert.equal(mapDigitalCollective(false, true), -1);
   assert.equal(mapDigitalCollective(true, true), 0);
+  assert.equal(mapGamepadYaw({ pressed: false, value: 0.08 }, { pressed: false, value: 0.12 }), 0);
+  assert.equal(mapGamepadYaw({ pressed: true, value: 1 }, { pressed: false, value: 0 }), -1);
+  assert.equal(mapGamepadYaw({ pressed: false, value: 0 }, { pressed: true, value: 1 }), 1);
 });
 
 test("Nairobi real terrain is the token-free default and decodes provider elevations", () => {
@@ -231,6 +235,19 @@ test("arcade assist automatically levels and brakes after movement input", () =>
   assert.ok(commandedSpeed > 20, "forward input should build useful mission speed");
   assert.ok(releasedSpeed < commandedSpeed * 0.2, "neutral input should brake horizontal motion");
   assert.ok(Math.abs(model.pitch) < 0.02, "neutral input should return the aircraft to level");
+});
+
+test("released yaw settles completely instead of revolving indefinitely", () => {
+  const ground = 1_700;
+  const model = new FlightModel(DEFAULT_SETTINGS);
+  model.position.set(0, ground + 20, 120);
+  simulate(model, 0.8, controls({ yaw: 1 }), ground);
+  simulate(model, 2, controls(), ground);
+
+  const settledYaw = model.yaw;
+  assert.equal(model.yawRate, 0, "neutral pedals should reach a true stopped state");
+  simulate(model, 2, controls(), ground);
+  assert.equal(model.yaw, settledYaw, "heading must remain fixed after the turn is released");
 });
 
 test("advanced mode retains persistent collective authority", () => {

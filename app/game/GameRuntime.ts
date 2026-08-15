@@ -218,6 +218,7 @@ export class GameRuntime {
 
   setPaused(next: boolean) {
     this.paused = next;
+    this.input?.releaseControls();
     if (next) {
       this.audio.suspend();
       if (document.pointerLockElement === this.canvas) document.exitPointerLock();
@@ -465,11 +466,17 @@ export class GameRuntime {
         .add(new Vector3(this.cameraLookX * 35, -this.cameraLookY * 24, 0));
       this.aircraft.root.setEnabled(false);
     } else if (this.cameraMode === "cinematic") {
-      const orbit = performance.now() * 0.00013;
-      desiredPosition = this.flight.position.add(
-        new Vector3(Math.sin(orbit) * 30, 12, Math.cos(orbit) * 30),
-      );
-      target = this.flight.position.add(forward.scale(6));
+      // A stable rear-quarter shot preserves the cinematic view without an
+      // unconditional time-based orbit that can look like the helicopter is
+      // trapped in a continuous spin.
+      const right = Vector3.Right().applyRotationQuaternion(this.flight.rotation);
+      right.y = 0;
+      if (right.lengthSquared() > 0.0001) right.normalize();
+      desiredPosition = this.flight.position
+        .subtract(forward.scale(19))
+        .subtract(right.scale(18))
+        .add(up.scale(10));
+      target = this.flight.position.add(forward.scale(10)).add(up.scale(1.3));
       this.aircraft.root.setEnabled(true);
     } else {
       desiredPosition = this.flight.position
