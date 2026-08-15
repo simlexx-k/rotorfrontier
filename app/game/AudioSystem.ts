@@ -67,6 +67,39 @@ export class AudioSystem {
     oscillator.stop(this.context.currentTime + 0.28);
   }
 
+  rocket() {
+    if (!this.context || !this.master) return;
+    const oscillator = this.context.createOscillator();
+    const gain = this.context.createGain();
+    oscillator.type = "sawtooth";
+    oscillator.frequency.setValueAtTime(74, this.context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(24, this.context.currentTime + 0.34);
+    gain.gain.setValueAtTime(0.18, this.context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.38);
+    oscillator.connect(gain).connect(this.master);
+    oscillator.start();
+    oscillator.stop(this.context.currentTime + 0.4);
+  }
+
+  explosion(intensity = 1) {
+    if (!this.context || !this.master) return;
+    const length = Math.floor(this.context.sampleRate * 0.48);
+    const buffer = this.context.createBuffer(1, length, this.context.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let index = 0; index < length; index += 1) {
+      data[index] = (Math.random() * 2 - 1) * Math.pow(1 - index / length, 2.2);
+    }
+    const source = this.context.createBufferSource();
+    const filter = this.context.createBiquadFilter();
+    const gain = this.context.createGain();
+    source.buffer = buffer;
+    filter.type = "lowpass";
+    filter.frequency.value = 240;
+    gain.gain.value = Math.min(0.7, 0.28 * intensity);
+    source.connect(filter).connect(gain).connect(this.master);
+    source.start();
+  }
+
   suspend() { void this.context?.suspend(); }
   resume() { void this.context?.resume(); }
 

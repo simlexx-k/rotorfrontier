@@ -55,6 +55,8 @@ export const CONTROL_REFERENCE = [
   ["Collective", "Shift / Ctrl · RT / LT"],
   ["Primary weapon", "Left click / Space · A"],
   ["Secondary weapon", "Right click · B"],
+  ["Cycle secondary", "R · X"],
+  ["Cycle target", "Tab · D-pad up"],
   ["Change camera", "C · Y"],
   ["Hover assist", "H · Left stick click"],
   ["Pause", "P / Esc · Menu"],

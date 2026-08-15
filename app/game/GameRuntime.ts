@@ -5,16 +5,35 @@ import {
   Engine,
   FreeCamera,
   MeshBuilder,
+  Quaternion,
   Scene,
   StandardMaterial,
   Vector3,
   WebGPUEngine,
 } from "@babylonjs/core";
+import { AISystem } from "./AISystem";
 import { AudioSystem } from "./AudioSystem";
+import { CombatSystem } from "./CombatSystem";
 import { FlightModel } from "./FlightModel";
 import { InputManager } from "./InputManager";
-import type { CameraMode, FlightTelemetry, GameSettings, MissionDefinition, RuntimeCallbacks } from "./types";
-import { createHelicopter, terrainHeight, WorldBuilder, type HelicopterVisual } from "./WorldBuilder";
+import { MissionDirector, type MissionState } from "./MissionDirector";
+import type { NetworkSession } from "./NetworkSession";
+import type {
+  CameraMode,
+  CareerProfile,
+  FlightTelemetry,
+  GameSettings,
+  MissionDefinition,
+  MissionResult,
+  NetworkFlightState,
+  RuntimeCallbacks,
+} from "./types";
+import {
+  createHelicopter,
+  terrainHeight,
+  WorldBuilder,
+  type HelicopterVisual,
+} from "./WorldBuilder";
 
 export class GameRuntime {
   private engine: AbstractEngine | null = null;
@@ -22,29 +41,52 @@ export class GameRuntime {
   private camera: FreeCamera | null = null;
   private world: WorldBuilder | null = null;
   private aircraft: HelicopterVisual | null = null;
+  private remoteAircraft: HelicopterVisual | null = null;
+  private remoteState: NetworkFlightState | null = null;
   private input: InputManager | null = null;
+  private combat: CombatSystem | null = null;
+  private ai: AISystem | null = null;
+  private director: MissionDirector | null = null;
+  private missionState: MissionState;
   private readonly flight: FlightModel;
   private readonly audio = new AudioSystem();
+  private readonly maxHull: number;
   private cameraMode: CameraMode = "chase";
   private paused = false;
   private disposed = false;
   private lastFrame = performance.now();
   private accumulator = 0;
   private hudAccumulator = 0;
-  private missionProgress = 0;
+  private networkAccumulator = 0;
   private cannonCooldown = 0;
+  private secondaryCooldown = 0;
   private cameraLookX = 0;
   private cameraLookY = 0;
   private quality: "low" | "high" = "high";
   private lastInputDevice: FlightTelemetry["inputDevice"] = "keyboard-mouse";
+  private flightTime = 0;
+  private kills = 0;
+  private score = 0;
+  private resultSent = false;
+  private completionDelay = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly mission: MissionDefinition,
     private readonly settings: GameSettings,
+    private readonly career: CareerProfile,
     private readonly callbacks: RuntimeCallbacks,
+    private readonly network?: NetworkSession,
   ) {
-    this.flight = new FlightModel(settings);
+    this.flight = new FlightModel(settings, career.upgrades.engine);
+    this.maxHull = 100 + career.upgrades.armour * 12;
+    this.flight.hull = this.maxHull;
+    this.missionState = {
+      objective: mission.objective,
+      detail: "Follow the navigation marker",
+      progress: 0,
+      completed: false,
+    };
   }
 
   async initialize() {
@@ -63,8 +105,45 @@ export class GameRuntime {
       this.aircraft.root.rotationQuaternion = this.flight.rotation.clone();
       for (const mesh of this.aircraft.shadowMeshes) this.world.shadow.addShadowCaster(mesh);
 
+      this.remoteAircraft = createHelicopter(this.scene, "wingman", new Color3(0.08, 0.22, 0.3));
+      this.remoteAircraft.root.setEnabled(false);
+      for (const mesh of this.remoteAircraft.shadowMeshes) this.world.shadow.addShadowCaster(mesh);
+
+      this.combat = new CombatSystem(
+        this.scene,
+        {
+          onPlayerDamage: (amount, source) => this.damagePlayer(amount, source),
+          onExplosion: (position, intensity) => {
+            this.audio.explosion(intensity);
+            if (Vector3.Distance(position, this.flight.position) < 120) {
+              void this.input?.pulse(Math.min(1, intensity * 0.7), 0.5, 160);
+            }
+          },
+          onNotice: this.callbacks.onNotice,
+        },
+        this.career.upgrades.weapons,
+        this.career.upgrades.sensors,
+      );
+      this.ai = new AISystem(this.scene, this.world, this.mission, {
+        onFire: (origin, direction, speed, guided) => this.combat?.fireEnemy(origin, direction, speed, guided),
+        onDestroyed: (enemy) => {
+          this.combat?.explode(enemy.position, enemy.kind === "helicopter" ? 1.25 : 0.9);
+          this.kills += 1;
+          this.score += enemy.kind === "sam" ? 1250 : enemy.kind === "helicopter" ? 1000 : 650;
+          this.callbacks.onNotice(`${enemy.name} destroyed`);
+        },
+      });
+      this.director = new MissionDirector(this.mission);
+      this.bindNetwork();
+      this.network?.sendEvent("notice", { missionId: this.mission.id });
+
       if (this.quality === "high") {
-        const pipeline = new DefaultRenderingPipeline("cinematic-pipeline", true, this.scene, [this.camera]);
+        const pipeline = new DefaultRenderingPipeline(
+          "cinematic-pipeline",
+          true,
+          this.scene,
+          [this.camera],
+        );
         pipeline.fxaaEnabled = true;
         pipeline.bloomEnabled = true;
         pipeline.bloomThreshold = 0.86;
@@ -79,9 +158,12 @@ export class GameRuntime {
       this.engine.runRenderLoop(this.renderFrame);
       window.addEventListener("resize", this.onResize);
       document.addEventListener("visibilitychange", this.onVisibilityChange);
-      this.callbacks.onNotice(`${this.engine.name.toUpperCase()} renderer · ${this.quality.toUpperCase()} quality`);
+      this.callbacks.onNotice(
+        `${this.engine.name.toUpperCase()} renderer · ${this.quality.toUpperCase()} quality`,
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to initialize the 3D engine.";
+      const message =
+        error instanceof Error ? error.message : "Unable to initialize the 3D engine.";
       this.callbacks.onFatal(message);
       throw error;
     }
@@ -104,16 +186,25 @@ export class GameRuntime {
     window.removeEventListener("resize", this.onResize);
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
     this.input?.dispose();
+    this.combat?.dispose();
+    this.ai?.dispose();
     this.audio.dispose();
     this.scene?.dispose();
     this.engine?.dispose();
+    if (this.network) {
+      this.network.onRemoteState = () => undefined;
+      this.network.onEvent = () => undefined;
+    }
   }
 
   private async createEngine(): Promise<AbstractEngine> {
     const canUseWebGpu = "gpu" in navigator && this.settings.quality !== "low";
     if (canUseWebGpu) {
       try {
-        const engine = new WebGPUEngine(this.canvas, { antialias: true, adaptToDeviceRatio: true });
+        const engine = new WebGPUEngine(this.canvas, {
+          antialias: true,
+          adaptToDeviceRatio: true,
+        });
         await engine.initAsync();
         return engine;
       } catch {
@@ -136,16 +227,31 @@ export class GameRuntime {
   }
 
   private renderFrame = () => {
-    if (this.disposed || !this.scene || !this.engine || !this.input || !this.world || !this.aircraft || !this.camera) return;
+    if (
+      this.disposed ||
+      !this.scene ||
+      !this.engine ||
+      !this.input ||
+      !this.world ||
+      !this.aircraft ||
+      !this.camera
+    )
+      return;
     const now = performance.now();
     const frameDelta = Math.min((now - this.lastFrame) / 1000, 0.1);
     this.lastFrame = now;
 
     if (this.input.consume("pause")) this.setPaused(!this.paused);
     if (this.input.consume("camera")) this.cycleCamera();
+    if (this.input.consume("weapon")) this.combat?.cycleWeapon();
+    if (this.input.consume("target")) {
+      this.combat?.cycleTarget(this.ai?.targets ?? [], this.flight.position);
+    }
     if (this.input.consume("hover")) {
       this.flight.hoverAssist = !this.flight.hoverAssist;
-      this.callbacks.onNotice(`Hover assist ${this.flight.hoverAssist ? "engaged" : "disengaged"}`);
+      this.callbacks.onNotice(
+        `Hover assist ${this.flight.hoverAssist ? "engaged" : "disengaged"}`,
+      );
     }
 
     if (!this.paused) {
@@ -155,6 +261,7 @@ export class GameRuntime {
         this.accumulator -= 1 / 60;
       }
       this.updateCamera(frameDelta);
+      this.updateRemoteAircraft(frameDelta);
       this.world.update(frameDelta, this.flight.position);
       this.hudAccumulator += frameDelta;
       if (this.hudAccumulator >= 0.08) {
@@ -166,7 +273,9 @@ export class GameRuntime {
   };
 
   private fixedUpdate(delta: number) {
-    if (!this.input || !this.world || !this.aircraft) return;
+    if (!this.input || !this.world || !this.aircraft || !this.combat || !this.ai || !this.director)
+      return;
+    this.flightTime += delta;
     const controls = this.input.read();
     this.lastInputDevice = controls.device;
     const ground = terrainHeight(this.flight.position.x, this.flight.position.z);
@@ -179,24 +288,85 @@ export class GameRuntime {
     this.cameraLookY += (controls.lookY - this.cameraLookY) * delta * 4;
     this.audio.update(this.flight.rotorRpm, this.flight.collective, this.flight.airspeed);
 
+    const forward = Vector3.Forward().applyRotationQuaternion(this.flight.rotation);
+    const up = Vector3.Up().applyRotationQuaternion(this.flight.rotation);
+    const muzzle = this.flight.position.add(forward.scale(3.2)).subtract(up.scale(0.38));
     this.cannonCooldown -= delta;
+    this.secondaryCooldown -= delta;
     if (controls.firePrimary && this.cannonCooldown <= 0) {
-      this.cannonCooldown = 0.085;
-      this.audio.shot();
-      void this.input.pulse(0.18, 0.38, 45);
+      this.cannonCooldown = 0.075;
+      if (this.combat.fireCannon(muzzle, forward, this.flight.velocity)) {
+        this.audio.shot();
+        void this.input.pulse(0.18, 0.38, 45);
+        this.network?.sendEvent("cannon", {
+          position: [muzzle.x, muzzle.y, muzzle.z],
+          direction: [forward.x, forward.y, forward.z],
+        });
+      }
     }
+    if (controls.fireSecondary && this.secondaryCooldown <= 0) {
+      const fired = this.combat.fireSecondary(
+        muzzle.add(forward.scale(1.2)),
+        forward,
+        this.flight.velocity,
+        this.ai.targets,
+      );
+      if (fired) {
+        this.secondaryCooldown = this.combat.selectedWeapon === "hellfire" ? 1.7 : 0.32;
+        this.audio.rocket();
+        void this.input.pulse(0.5, 0.35, 120);
+        this.network?.sendEvent(
+          this.combat.selectedWeapon === "hellfire" ? "missile" : "rocket",
+          {
+            position: [muzzle.x, muzzle.y, muzzle.z],
+            direction: [forward.x, forward.y, forward.z],
+            targetId: this.combat.selectedTargetId,
+          },
+        );
+      }
+    }
+
+    this.ai.update(delta, this.flight.position, this.flight.velocity);
+    this.combat.update(delta, this.flight.position, this.ai.targets);
 
     if (result.hardLanding) {
       this.audio.impact(Math.min(1, result.impact / 12));
       void this.input.pulse(Math.min(1, result.impact / 12), 0.7, 180);
-      this.callbacks.onNotice(result.impact > 9 ? "Hard impact — systems damaged" : "Hard landing");
+      this.callbacks.onNotice(
+        result.impact > 9 ? "Hard impact — systems damaged" : "Hard landing",
+      );
     }
 
-    const distance = Vector3.Distance(this.flight.position, this.objectivePoint());
-    this.missionProgress = Math.max(this.missionProgress, 1 - Math.min(1, distance / 3600));
-    if (distance < 130 && this.missionProgress < 1) {
-      this.missionProgress = 1;
-      this.callbacks.onNotice("Objective area reached — hold position");
+    this.missionState = this.director.update(delta, {
+      playerPosition: this.flight.position,
+      speed: this.flight.velocity.length(),
+      radarAltitude: Math.max(0, this.flight.position.y - ground),
+      destroyedAir: this.ai.destroyedAir,
+      destroyedGround: this.ai.destroyedGround,
+      remainingEnemies: this.ai.remainingEnemies,
+    });
+    if (this.missionState.completed) {
+      this.completionDelay += delta;
+      if (this.completionDelay > 2) this.finishMission(true);
+    }
+    if (this.flight.hull <= 0) this.finishMission(false);
+
+    this.networkAccumulator += delta;
+    if (this.networkAccumulator >= 1 / 15) {
+      this.networkAccumulator = 0;
+      this.network?.sendState({
+        position: [this.flight.position.x, this.flight.position.y, this.flight.position.z],
+        rotation: [
+          this.flight.rotation.x,
+          this.flight.rotation.y,
+          this.flight.rotation.z,
+          this.flight.rotation.w,
+        ],
+        velocity: [this.flight.velocity.x, this.flight.velocity.y, this.flight.velocity.z],
+        rotorRpm: this.flight.rotorRpm,
+        hull: (this.flight.hull / this.maxHull) * 100,
+        timestamp: performance.now(),
+      });
     }
   }
 
@@ -208,20 +378,29 @@ export class GameRuntime {
     let target: Vector3;
     if (this.cameraMode === "cockpit") {
       desiredPosition = this.flight.position.add(up.scale(0.48)).add(forward.scale(1.42));
-      target = desiredPosition.add(forward.scale(240)).add(new Vector3(this.cameraLookX * 35, -this.cameraLookY * 24, 0));
+      target = desiredPosition
+        .add(forward.scale(240))
+        .add(new Vector3(this.cameraLookX * 35, -this.cameraLookY * 24, 0));
       this.aircraft.root.setEnabled(false);
     } else if (this.cameraMode === "cinematic") {
       const orbit = performance.now() * 0.00013;
-      desiredPosition = this.flight.position.add(new Vector3(Math.sin(orbit) * 30, 12, Math.cos(orbit) * 30));
+      desiredPosition = this.flight.position.add(
+        new Vector3(Math.sin(orbit) * 30, 12, Math.cos(orbit) * 30),
+      );
       target = this.flight.position.add(forward.scale(6));
       this.aircraft.root.setEnabled(true);
     } else {
-      desiredPosition = this.flight.position.subtract(forward.scale(24)).add(up.scale(8.5)).add(new Vector3(this.cameraLookX * 4, this.cameraLookY * -3, 0));
+      desiredPosition = this.flight.position
+        .subtract(forward.scale(24))
+        .add(up.scale(8.5))
+        .add(new Vector3(this.cameraLookX * 4, this.cameraLookY * -3, 0));
       target = this.flight.position.add(forward.scale(19)).add(up.scale(1.2));
       this.aircraft.root.setEnabled(true);
     }
     const smoothing = 1 - Math.exp(-delta * (this.cameraMode === "cockpit" ? 16 : 6.5));
-    this.camera.position.copyFrom(Vector3.Lerp(this.camera.position, desiredPosition, smoothing));
+    this.camera.position.copyFrom(
+      Vector3.Lerp(this.camera.position, desiredPosition, smoothing),
+    );
     this.camera.setTarget(Vector3.Lerp(this.camera.getTarget(), target, smoothing));
   }
 
@@ -231,16 +410,14 @@ export class GameRuntime {
     this.callbacks.onNotice(`${this.cameraMode} camera`);
   }
 
-  private objectivePoint() {
-    if (this.mission.id === "first-light") return new Vector3(-1650, 80, -1430);
-    if (this.mission.id === "broken-spear") return new Vector3(1820, 80, 1020);
-    return new Vector3(1240, 70, 2660);
-  }
-
   private telemetry(): FlightTelemetry {
     const ground = terrainHeight(this.flight.position.x, this.flight.position.z);
     const hours = Math.floor(this.world?.timeOfDay ?? 0);
     const minutes = Math.floor(((this.world?.timeOfDay ?? 0) % 1) * 60);
+    const target = this.combat?.targetInfo(this.ai?.targets ?? [], this.flight.position) ?? {
+      name: "NO TARGET",
+      distance: 0,
+    };
     return {
       altitude: this.flight.position.y * 3.28084,
       radarAltitude: Math.max(0, (this.flight.position.y - ground - 1.7) * 3.28084),
@@ -250,7 +427,7 @@ export class GameRuntime {
       collective: this.flight.collective * 100,
       rotorRpm: this.flight.rotorRpm * 100,
       fuel: this.flight.fuel,
-      hull: this.flight.hull,
+      hull: (this.flight.hull / this.maxHull) * 100,
       engine: this.flight.engine,
       positionX: this.flight.position.x,
       positionZ: this.flight.position.z,
@@ -261,9 +438,110 @@ export class GameRuntime {
       time: `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`,
       weather: this.world?.weather ?? this.mission.weather,
       missionTitle: this.mission.callsign,
-      objective: this.mission.objective,
-      objectiveProgress: this.missionProgress,
+      objective: this.missionState.objective,
+      objectiveProgress: this.missionState.progress,
+      objectiveDetail: this.missionState.detail,
+      cannonAmmo: this.combat?.cannonAmmo ?? 0,
+      rockets: this.combat?.rockets ?? 0,
+      missiles: this.combat?.missiles ?? 0,
+      selectedWeapon: this.combat?.selectedWeapon ?? "hydra",
+      targetName: target.name,
+      targetDistance: target.distance,
+      threatLevel: this.combat?.threatLevel ?? "clear",
+      kills: this.kills,
+      score: this.score,
+      networkStatus: this.network?.status ?? "offline",
     };
+  }
+
+  private damagePlayer(amount: number, source: string) {
+    const mitigation = 1 - this.career.upgrades.armour * 0.075;
+    this.flight.hull = Math.max(0, this.flight.hull - amount * mitigation);
+    this.flight.engine = Math.max(20, this.flight.engine - amount * 0.08);
+    this.audio.impact(Math.min(1, amount / 16));
+    void this.input?.pulse(Math.min(1, amount / 12), 0.65, 130);
+    this.callbacks.onNotice(`Hit by ${source}`);
+  }
+
+  private finishMission(success: boolean) {
+    if (this.resultSent) return;
+    this.resultSent = true;
+    this.paused = true;
+    this.audio.suspend();
+    const hullBonus = Math.round((this.flight.hull / this.maxHull) * 2200);
+    const timeBonus = Math.max(0, Math.round(2400 - this.flightTime * 5));
+    const score = Math.max(0, this.score + hullBonus + timeBonus + (success ? 6000 : 0));
+    const rating: MissionResult["rating"] =
+      score >= 10500 ? "S" : score >= 7600 ? "A" : score >= 4800 ? "B" : "C";
+    this.callbacks.onMissionComplete({
+      success,
+      missionId: this.mission.id,
+      score,
+      kills: this.kills,
+      credits: success ? 1800 + this.kills * 180 : 300 + this.kills * 80,
+      xp: success ? 900 + this.kills * 120 : 180 + this.kills * 60,
+      flightTime: this.flightTime,
+      rating,
+    });
+  }
+
+  private bindNetwork() {
+    if (!this.network) return;
+    this.network.onRemoteState = (state) => {
+      this.remoteState = state;
+      this.remoteAircraft?.root.setEnabled(true);
+    };
+    this.network.onEvent = (event) => {
+      if (event.name === "notice") {
+        const remoteMission = this.readString(event.payload?.missionId);
+        if (remoteMission && remoteMission !== this.mission.id) {
+          this.callbacks.onNotice("Wingman launched a different operation");
+        }
+        return;
+      }
+      const position = this.readVector(event.payload?.position);
+      const direction = this.readVector(event.payload?.direction);
+      if (!position || !direction || !this.combat) return;
+      if (event.name === "cannon") {
+        this.combat.fireCannon(position, direction, Vector3.Zero(), "remote");
+      } else {
+        this.combat.fireRemoteSecondary(
+          event.name === "missile" ? "hellfire" : "hydra",
+          position,
+          direction,
+          this.readString(event.payload?.targetId) ?? undefined,
+        );
+      }
+    };
+  }
+
+  private updateRemoteAircraft(delta: number) {
+    if (!this.remoteAircraft || !this.remoteState) return;
+    const desiredPosition = new Vector3(...this.remoteState.position);
+    const desiredRotation = new Quaternion(...this.remoteState.rotation);
+    const smoothing = 1 - Math.exp(-delta * 9);
+    this.remoteAircraft.root.position.copyFrom(
+      Vector3.Lerp(this.remoteAircraft.root.position, desiredPosition, smoothing),
+    );
+    this.remoteAircraft.root.rotationQuaternion ??= Quaternion.Identity();
+    Quaternion.SlerpToRef(
+      this.remoteAircraft.root.rotationQuaternion,
+      desiredRotation,
+      smoothing,
+      this.remoteAircraft.root.rotationQuaternion,
+    );
+    this.remoteAircraft.rotor.rotation.y += delta * (18 + this.remoteState.rotorRpm * 44);
+    this.remoteAircraft.tailRotor.rotation.y += delta * (25 + this.remoteState.rotorRpm * 70);
+  }
+
+  private readVector(value: unknown) {
+    if (!Array.isArray(value) || value.length !== 3 || value.some((item) => typeof item !== "number"))
+      return null;
+    return new Vector3(value[0] as number, value[1] as number, value[2] as number);
+  }
+
+  private readString(value: unknown) {
+    return typeof value === "string" ? value : null;
   }
 
   private createNavigationLights() {

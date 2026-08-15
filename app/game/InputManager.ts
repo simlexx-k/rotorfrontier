@@ -4,10 +4,11 @@ type ActionName = "camera" | "hover" | "pause" | "target" | "weapon";
 
 const clamp = (value: number, min = -1, max = 1) => Math.min(max, Math.max(min, value));
 
-const deadzone = (value: number, zone: number) => {
-  const magnitude = Math.abs(value);
-  if (magnitude <= zone) return 0;
-  return Math.sign(value) * ((magnitude - zone) / (1 - zone));
+const radialDeadzone = (x: number, y: number, zone: number): [number, number] => {
+  const magnitude = Math.hypot(x, y);
+  if (magnitude <= zone) return [0, 0];
+  const normalized = Math.min(1, (magnitude - zone) / (1 - zone));
+  return [(x / magnitude) * normalized, (y / magnitude) * normalized];
 };
 
 export class InputManager {
@@ -58,10 +59,8 @@ export class InputManager {
 
     if (gamepad) {
       const axes = gamepad.axes;
-      const leftX = deadzone(axes[0] ?? 0, zone);
-      const leftY = deadzone(axes[1] ?? 0, zone);
-      const rightX = deadzone(axes[2] ?? 0, zone);
-      const rightY = deadzone(axes[3] ?? 0, zone);
+      const [leftX, leftY] = radialDeadzone(axes[0] ?? 0, axes[1] ?? 0, zone);
+      const [rightX, rightY] = radialDeadzone(axes[2] ?? 0, axes[3] ?? 0, zone);
       const leftTrigger = gamepad.buttons[6]?.value ?? 0;
       const rightTrigger = gamepad.buttons[7]?.value ?? 0;
       const padActive = Math.abs(leftX) + Math.abs(leftY) + Math.abs(rightX) + Math.abs(rightY) + leftTrigger + rightTrigger > 0.08 || gamepad.buttons.some((button) => button.pressed);

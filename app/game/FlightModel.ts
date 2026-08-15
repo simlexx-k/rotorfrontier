@@ -23,7 +23,10 @@ export class FlightModel {
   engine = 100;
   hoverAssist: boolean;
 
-  constructor(private readonly settings: GameSettings) {
+  constructor(
+    private readonly settings: GameSettings,
+    private readonly engineUpgrade = 0,
+  ) {
     this.hoverAssist = settings.flightAssist;
   }
 
@@ -53,7 +56,7 @@ export class FlightModel {
     const radarAltitude = Math.max(0, this.position.y - groundHeight - 1.7);
     const groundEffect = radarAltitude < 18 ? 1 + (1 - radarAltitude / 18) * 0.16 : 1;
     const density = clamp(1 - this.position.y / 12500, 0.72, 1);
-    const liftAcceleration = 16.7 * this.collective * this.rotorRpm * this.rotorRpm * rotorDiscEfficiency * groundEffect * density;
+    const liftAcceleration = 16.7 * (1 + this.engineUpgrade * 0.035) * this.collective * this.rotorRpm * this.rotorRpm * rotorDiscEfficiency * groundEffect * density;
 
     const acceleration = up.scale(liftAcceleration);
     acceleration.y -= 9.81;
