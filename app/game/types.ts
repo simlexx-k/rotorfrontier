@@ -1,6 +1,8 @@
 export type MissionId = "first-light" | "broken-spear" | "silent-river";
 export type CameraMode = "chase" | "cockpit" | "cinematic";
 export type WeatherMode = "clear" | "haze" | "storm";
+export type MapProvider = "open" | "maptiler" | "mapbox";
+export type TerrainSource = MapProvider | "procedural";
 export type InputDevice = "keyboard-mouse" | "gamepad";
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "debrief";
 export type WeaponType = "cannon" | "hydra" | "hellfire";
@@ -102,6 +104,7 @@ export interface FlightTelemetry {
   kills: number;
   score: number;
   networkStatus: NetworkStatus;
+  terrainSource: TerrainSource;
 }
 
 export interface GameSettings {
@@ -111,6 +114,9 @@ export interface GameSettings {
   invertY: boolean;
   masterVolume: number;
   quality: "auto" | "low" | "high";
+  realTerrain: boolean;
+  mapProvider: MapProvider;
+  mapToken: string;
 }
 
 export interface RuntimeCallbacks {

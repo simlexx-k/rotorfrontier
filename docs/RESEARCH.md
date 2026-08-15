@@ -31,8 +31,24 @@ audio integration, picking, and optional Havok physics.
 - [Babylon.js documentation](https://doc.babylonjs.com/)
 
 Decision: keep helicopter aerodynamics in a custom deterministic integrator while
-using Babylon for rendering and spatial systems. Terrain is generated once per
-sortie and vegetation uses thin instances to keep draw-call count practical.
+using Babylon for rendering and spatial systems. The Nairobi theatre decodes a
+real-world RGB elevation mosaic once per sortie, drapes the corresponding map tiles,
+and gives rendering and simulation one shared height sampler. Vegetation uses thin
+instances to keep draw-call count practical; procedural terrain is retained only as
+a service/offline fallback.
+
+The token-free source combines public Mapzen Terrarium tiles from the AWS Open Data
+Registry with OpenStreetMap standard raster tiles. MapTiler and Mapbox Terrain RGB
+plus satellite tiles are optional settings-backed sources. Requests are restricted
+to the nine tiles needed for the selected theatre, browser HTTP caching is enabled,
+and attribution is visible in-game.
+
+- [AWS Open Data Terrain Tiles](https://registry.opendata.aws/terrain-tiles/)
+- [Mapzen Terrarium elevation format](https://github.com/tilezen/joerd/blob/master/docs/formats.md)
+- [OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/)
+- [MapTiler Tiles API](https://docs.maptiler.com/cloud/api/tiles/)
+- [Mapbox elevation-data guide](https://docs.mapbox.com/data/tilesets/guides/access-elevation-data/)
+- [Mapbox Satellite](https://docs.mapbox.com/data/tilesets/reference/mapbox-satellite/)
 
 ## AH-64E airframe and visual asset pipeline
 

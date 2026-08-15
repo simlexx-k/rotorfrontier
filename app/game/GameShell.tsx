@@ -56,6 +56,7 @@ const EMPTY_TELEMETRY: FlightTelemetry = {
   kills: 0,
   score: 0,
   networkStatus: "offline",
+  terrainSource: "procedural",
 };
 
 type UpgradeSystem = keyof CareerProfile["upgrades"];
@@ -72,6 +73,32 @@ const UPGRADE_DATA: Array<{
   { system: "sensors", name: "Targeting suite", code: "TADS/PNVS", description: "Long-range target acquisition" },
   { system: "weapons", name: "Stores system", code: "M299", description: "More ammunition per sortie" },
 ];
+
+function MapAttribution({ source }: { source: FlightTelemetry["terrainSource"] }) {
+  if (source === "procedural") return null;
+  if (source === "maptiler") {
+    return (
+      <div className="map-attribution">
+        Map © <a href="https://www.maptiler.com/copyright/" target="_blank" rel="noreferrer">MapTiler</a>
+        {" · Data © "}<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>
+      </div>
+    );
+  }
+  if (source === "mapbox") {
+    return (
+      <div className="map-attribution">
+        Map © <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noreferrer">Mapbox</a>
+        {" · Data © "}<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>
+      </div>
+    );
+  }
+  return (
+    <div className="map-attribution">
+      Terrain © <a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noreferrer">AWS Open Data / Mapzen</a>
+      {" · Map © "}<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>
+    </div>
+  );
+}
 
 export default function GameShell() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -266,6 +293,11 @@ export default function GameShell() {
 
   const compass = useMemo(() => Math.round(telemetry.heading).toString().padStart(3, "0"), [telemetry.heading]);
   const secondaryAmmo = telemetry.selectedWeapon === "hellfire" ? telemetry.missiles : telemetry.rockets;
+  const mapProviderLabel = !settings.realTerrain
+    ? "procedural"
+    : settings.mapProvider === "open"
+      ? "open data"
+      : settings.mapProvider;
 
   return (
     <main className="game-shell">
@@ -287,8 +319,8 @@ export default function GameShell() {
               <h1 className="menu-title">Own the <span>vertical</span></h1>
               <p className="menu-copy">
                 A physics-driven combat flight experience. Master rotor energy,
-                terrain masking and precision weapons across a persistent,
-                evolving eight-kilometre battlespace.
+                terrain masking and precision weapons across a streamed,
+                real-elevation Nairobi battlespace.
               </p>
 
               <div className="mission-selector" aria-label="Select operation">
@@ -336,7 +368,8 @@ export default function GameShell() {
               <div className="system-row"><span>Renderer</span><output>WebGPU / WebGL 2</output></div>
               <div className="system-row"><span>Input bus</span><output>Mouse · Keys · Gamepad</output></div>
               <div className="system-row"><span>Flight model</span><output>60 Hz fixed-step</output></div>
-              <div className="system-row"><span>World</span><output>8.2 km procedural</output></div>
+              <div className="system-row"><span>World</span><output>Nairobi · 8.2 km</output></div>
+              <div className="system-row"><span>Map source</span><output>{mapProviderLabel}</output></div>
               <div className="system-row"><span>Operation weather</span><output>{mission.weather}</output></div>
             </aside>
           </div>
@@ -398,6 +431,8 @@ export default function GameShell() {
                 Hover assist {telemetry.hoverAssist ? "ON" : "OFF"}
               </div>
             </div>
+
+            <MapAttribution source={telemetry.terrainSource} />
 
             {notice ? <div className="toast-stack" aria-live="polite"><div className="toast">{notice}</div></div> : null}
           </section>
@@ -555,6 +590,32 @@ export default function GameShell() {
             <RangeSetting label="Master volume" value={settings.masterVolume} min={0} max={1} step={0.01} onChange={(value) => updateSetting("masterVolume", value)} />
             <ToggleSetting label="Flight stability assist" checked={settings.flightAssist} onChange={(value) => updateSetting("flightAssist", value)} />
             <ToggleSetting label="Invert cyclic Y axis" checked={settings.invertY} onChange={(value) => updateSetting("invertY", value)} />
+            <ToggleSetting label="Stream real Nairobi terrain" checked={settings.realTerrain} onChange={(value) => updateSetting("realTerrain", value)} />
+            <label className="setting-row">
+              <span><strong>Map provider</strong><small>Open data works immediately; MapTiler and Mapbox add satellite imagery.</small></span>
+              <select
+                value={settings.mapProvider}
+                onChange={(event) => updateSetting("mapProvider", event.target.value as GameSettings["mapProvider"])}
+                disabled={!settings.realTerrain}
+              >
+                <option value="open">Open data · no token</option>
+                <option value="maptiler">MapTiler</option>
+                <option value="mapbox">Mapbox</option>
+              </select>
+            </label>
+            {settings.realTerrain && settings.mapProvider !== "open" ? (
+              <label className="setting-row map-token-row">
+                <span><strong>Public map token</strong><small>Stored only in this browser and never committed to the game source.</small></span>
+                <input
+                  type="password"
+                  value={settings.mapToken}
+                  onChange={(event) => updateSetting("mapToken", event.target.value)}
+                  placeholder={settings.mapProvider === "maptiler" ? "MapTiler API key" : "Mapbox public token"}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </label>
+            ) : null}
             <label className="setting-row">
               <span><strong>Rendering quality</strong><small>Auto adapts to CPU cores and device memory.</small></span>
               <select value={settings.quality} onChange={(event) => updateSetting("quality", event.target.value as GameSettings["quality"])}>
@@ -564,7 +625,9 @@ export default function GameShell() {
               </select>
             </label>
           </div>
-          <p className="modal-copy">Changes are saved locally and apply on the next sortie.</p>
+          <p className="modal-copy">
+            Nairobi is centred at 1.2864° S, 36.8172° E. Changes are saved locally and apply on the next sortie.
+          </p>
         </Modal>
       ) : null}
 

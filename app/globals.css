@@ -508,6 +508,22 @@ textarea:focus-visible {
   gap: 0.45rem;
 }
 
+.map-attribution {
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.35rem;
+  z-index: 3;
+  padding: 0.25rem 0.4rem;
+  background: rgba(2, 8, 9, 0.68);
+  color: rgba(232, 247, 241, 0.72);
+  font-size: 0.48rem;
+  letter-spacing: 0.035em;
+  pointer-events: auto;
+}
+
+.map-attribution a { color: var(--cyan); text-decoration: none; }
+.map-attribution a:hover { text-decoration: underline; }
+
 .weapon-chip,
 .assist-chip {
   min-width: 8.2rem;
@@ -1110,6 +1126,20 @@ select {
   color: var(--ink);
 }
 
+select:disabled { opacity: 0.45; }
+
+.map-token-row input {
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  outline: 0;
+  background: #04090b;
+  color: var(--cyan);
+  font: 0.68rem ui-monospace, monospace;
+}
+
+.map-token-row input:focus { border-color: var(--lime); }
+
 .network-summary {
   display: flex;
   align-items: center;
@@ -1207,6 +1237,7 @@ select {
   .weapon-chip, .assist-chip { min-width: 6rem; }
   .hud-bottom .weapon-chip:nth-child(3),
   .hud-bottom .network-live { display: none; }
+  .map-attribution { max-width: calc(100vw - 1rem); font-size: 0.42rem; }
   .airframe-chip { display: none; }
   .upgrade-grid,
   .career-banner { grid-template-columns: 1fr; }

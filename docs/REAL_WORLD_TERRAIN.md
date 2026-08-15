@@ -1,9 +1,34 @@
-# Real-world terrain and map import research
+# Real-world terrain and map import
 
-RotorFrontier's current 8.2 km battlespace is procedurally generated. Replacing it
-with an actual location requires two separate data layers: elevation that gameplay
-can query for collision and line-of-sight, and visual imagery or photogrammetry that
-the renderer can stream at several levels of detail.
+RotorFrontier now uses two coordinated real-world layers: elevation that gameplay
+queries for collision and terrain clearance, and imagery draped onto that same
+surface. The first implemented theatre is central Nairobi, Kenya.
+
+## Implemented Nairobi theatre
+
+| Property | Production-alpha value |
+|---|---|
+| Centre | -1.286389, 36.817223 (WGS84) |
+| Playable area | 8.2 km × 8.2 km |
+| Tile neighbourhood | 3 × 3 XYZ tiles at zoom 13 |
+| DEM ground sample | Approximately 19.10 m per source pixel at the theatre latitude |
+| Rendered map texture | 1024 × 1024 crop aligned to the playable bounds |
+| No-token source | AWS Open Data Mapzen Terrarium DEM + OpenStreetMap standard tiles |
+| Optional sources | MapTiler Terrain RGB + satellite; Mapbox Terrain-RGB + satellite |
+
+On sortie load, `RealTerrain.ts` converts the Nairobi coordinate to fractional XYZ
+tile space, fetches only the nine required DEM and imagery tiles, and decodes a
+768 × 768 elevation mosaic. A bilinear synchronous sampler converts local game
+metres into the same mosaic used to construct the terrain mesh. Aircraft spawn
+height, radar altitude, ground contact, AI clearance, and weapon collision therefore
+agree with the visible surface.
+
+The open source is active by default and needs no player credential. A public
+MapTiler key or Mapbox access token can be entered in Settings to activate satellite
+imagery and that provider's Terrain RGB. The token remains in browser local storage
+and is never committed. A commercial-provider error falls back to the open source;
+complete tile failure falls back to the original procedural terrain so a sortie can
+still launch. Source attribution remains visible on the in-flight HUD.
 
 ## Viable production approaches
 
@@ -24,14 +49,17 @@ Primary references:
 - [Google Photorealistic 3D Tiles](https://developers.google.com/maps/documentation/tile/3d-tiles)
 - [MapTiler Terrain RGB](https://docs.maptiler.com/guides/map-tiling-hosting/data-hosting/rgb-terrain-by-maptiler/)
 - [MapTiler Tiles API](https://docs.maptiler.com/cloud/api/tiles/)
-- [Mapbox Terrain-RGB](https://docs.mapbox.com/data/tilesets/reference/mapbox-terrain-rgb-v1/)
+- [Mapbox elevation data](https://docs.mapbox.com/data/tilesets/guides/access-elevation-data/)
+- [Mapbox Satellite](https://docs.mapbox.com/data/tilesets/reference/mapbox-satellite/)
+- [AWS Open Data Terrain Tiles](https://registry.opendata.aws/terrain-tiles/)
+- [Mapzen Terrarium format](https://github.com/tilezen/joerd/blob/master/docs/formats.md)
+- [OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/)
 
-## Recommended RotorFrontier pipeline
+## Production pipeline
 
-The lowest-risk route is a Babylon-native tiled terrain provider backed by MapTiler
-Terrain RGB and satellite imagery, or Mapbox Terrain-RGB through its supported Raster
-Tiles API. This preserves the fixed-step flight, weapon collision, AI clearance, and
-mission systems already built around a synchronous `terrainHeight(x, z)` query.
+The Babylon-native tiled terrain path preserves the fixed-step flight, weapon
+collision, AI clearance, and mission systems already built around a synchronous
+`terrainHeight(x, z)` query.
 
 1. Define a mission theatre by WGS84 centre coordinate, width, and height.
 2. Resolve the intersecting XYZ tiles at several zoom levels.
@@ -51,16 +79,21 @@ Photorealistic 3D Tiles should be an optional presentation layer, not the collis
 source. Photogrammetry contains holes, transient objects, and irregular surfaces, so
 a simplified DEM/collision mesh should remain authoritative underneath it.
 
-## Decisions required before implementation
+The current alpha completes steps 1–6 for one preloaded Nairobi tile neighbourhood.
+Multi-resolution ring streaming and richer vector-derived scene layers remain later
+production work.
 
-- The first real-world theatre and its centre coordinate or bounding box.
-- Terrain provider: MapTiler/Mapbox for the Babylon-native path, or Cesium/Google for
-  maximum photorealism and a larger renderer integration.
+## Next production decisions
+
 - Whether public online streaming is acceptable or mission areas must work offline.
 - Expected monthly players and bandwidth, which determine provider plan and cache
   design.
 - Whether the game is commercial, because provider licenses, attribution, session
   quotas, and imagery redistribution rules differ.
+- Whether to add Cesium/Google Photorealistic 3D Tiles as a non-authoritative visual
+  layer for urban landmarks.
+- Which Nairobi roads, buildings, vegetation masks, and landmarks should become
+  game-owned vector or 3D mission layers.
 
 No API key should be committed. Public browser tokens must be domain-restricted;
 secret service credentials belong in hosted environment configuration or a narrow

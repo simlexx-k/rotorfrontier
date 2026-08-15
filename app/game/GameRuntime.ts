@@ -100,7 +100,16 @@ export class GameRuntime {
       this.camera.minZ = 0.2;
       this.camera.maxZ = 16000;
       this.camera.fov = 0.92;
-      this.world = new WorldBuilder(this.scene, this.mission, this.quality === "high");
+      this.world = await WorldBuilder.create(
+        this.scene,
+        this.mission,
+        this.quality === "high",
+        this.settings,
+        this.callbacks.onNotice,
+      );
+      const departureElevation = terrainHeight(0, 120);
+      this.flight.position.y = departureElevation + 86;
+      this.camera.position.y = departureElevation + 95;
       this.aircraft = await createPlayerHelicopter(
         this.scene,
         "player",
@@ -164,7 +173,7 @@ export class GameRuntime {
       window.addEventListener("resize", this.onResize);
       document.addEventListener("visibilitychange", this.onVisibilityChange);
       this.callbacks.onNotice(
-        `${this.engine.name.toUpperCase()} · ${this.quality.toUpperCase()} · ${this.aircraft.assetTier === "procedural" ? "SAFETY AIRFRAME" : `AH-64E ${this.aircraft.assetTier.toUpperCase()} LOD`}`,
+        `${this.engine.name.toUpperCase()} · ${this.quality.toUpperCase()} · ${this.aircraft.assetTier === "procedural" ? "SAFETY AIRFRAME" : `AH-64E ${this.aircraft.assetTier.toUpperCase()} LOD`} · ${this.world.terrainLabel}`,
       );
     } catch (error) {
       const message =
@@ -456,6 +465,7 @@ export class GameRuntime {
       kills: this.kills,
       score: this.score,
       networkStatus: this.network?.status ?? "offline",
+      terrainSource: this.world?.terrainSource ?? "procedural",
     };
   }
 

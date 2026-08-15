@@ -10,6 +10,13 @@ import {
 import { ACTIVE_AIRCRAFT, DEFAULT_SETTINGS, MISSIONS } from "../app/game/config.ts";
 import { FlightModel } from "../app/game/FlightModel.ts";
 import { MissionDirector } from "../app/game/MissionDirector.ts";
+import {
+  decodeTerrainRgbHeight,
+  decodeTerrariumHeight,
+  latitudeLongitudeToTile,
+  metresPerPixelAtLatitude,
+  NAIROBI_THEATRE,
+} from "../app/game/RealTerrain.ts";
 
 test("AH-64E dossier retains sourced specifications and attribution", () => {
   assert.equal(ACTIVE_AIRCRAFT.designation, "AH-64E");
@@ -23,6 +30,30 @@ test("AH-64E dossier retains sourced specifications and attribution", () => {
 test("default operation launches in clear daylight", () => {
   assert.equal(MISSIONS[0].weather, "clear");
   assert.ok(MISSIONS[0].timeOfDay >= 10 && MISSIONS[0].timeOfDay <= 15);
+});
+
+test("Nairobi real terrain is the token-free default and decodes provider elevations", () => {
+  assert.equal(DEFAULT_SETTINGS.realTerrain, true);
+  assert.equal(DEFAULT_SETTINGS.mapProvider, "open");
+  assert.equal(DEFAULT_SETTINGS.mapToken, "");
+  assert.equal(NAIROBI_THEATRE.latitude, -1.286389);
+  assert.equal(NAIROBI_THEATRE.longitude, 36.817223);
+
+  const tile = latitudeLongitudeToTile(
+    NAIROBI_THEATRE.latitude,
+    NAIROBI_THEATRE.longitude,
+    NAIROBI_THEATRE.zoom,
+  );
+  assert.equal(Math.floor(tile.x), 4933);
+  assert.equal(Math.floor(tile.y), 4125);
+  assert.ok(
+    Math.abs(
+      metresPerPixelAtLatitude(NAIROBI_THEATRE.latitude, NAIROBI_THEATRE.zoom) -
+        19.1044409775,
+    ) < 0.000_001,
+  );
+  assert.equal(decodeTerrariumHeight(137, 219, 68), 2523.265625);
+  assert.ok(Math.abs(decodeTerrainRgbHeight(1, 150, 136) - 407.2) < 0.000_001);
 });
 
 test("career upgrades are immutable and deduct the documented cost", () => {

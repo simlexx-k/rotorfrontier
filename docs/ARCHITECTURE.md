@@ -48,12 +48,27 @@ relationships documented in FAA rotorcraft material.
 
 ## World and renderer
 
-`WorldBuilder` creates a deterministic 8.2 km terrain mesh, thin-instanced forest,
-river, outposts, helipad, and mission beacon. A time-of-day light model updates sun,
-ambient intensity, sky, fog, precipitation, and gusting wind. Babylon.js selects
-WebGPU where available and falls back to WebGL 2. High quality enables 2K filtered
-shadows, FXAA, bloom, and enhanced vegetation density; auto quality uses device
-memory and logical processor count as conservative hints.
+`WorldBuilder` asynchronously prepares a georeferenced 8.2 km Nairobi theatre before
+spawning simulation entities. `RealTerrain` resolves the 3 × 3 XYZ tile neighbourhood
+around -1.286389, 36.817223 at zoom 13, decodes the provider's RGB DEM into metres,
+and exposes one bilinear `terrainHeight(x, z)` sampler to flight contact, AI terrain
+clearance, weapon collision, spawning, and rendering. The same local bounds crop and
+drape the matching map imagery over the Babylon mesh. This keeps Babylon coordinates
+small while telemetry altitude remains mean-sea-level height.
+
+The default source is public Mapzen Terrarium elevation from the AWS Open Data
+Registry plus policy-compliant OpenStreetMap standard tiles, so real terrain works
+without a credential. Settings can select MapTiler or Mapbox Terrain RGB and
+satellite imagery when the player supplies a public browser token. Provider failure
+falls back to the open source, then to the deterministic procedural theatre if all
+tile requests fail. Tokens are stored only in the browser's local settings.
+
+Thin-instanced vegetation, outposts, helipad, and mission beacons remain game-owned
+layers above the terrain. A time-of-day model updates sun, ambient intensity, sky,
+fog, precipitation, and gusting wind. Babylon.js selects WebGPU where available and
+falls back to WebGL 2. High quality enables 2K filtered shadows, FXAA, bloom, and
+enhanced vegetation density; auto quality uses device memory and logical processor
+count as conservative hints.
 
 The player airframe uses asynchronously loaded, web-optimized GLBs. High quality
 loads the 15.15 MB presentation asset, while low quality loads a 7.19 MB performance

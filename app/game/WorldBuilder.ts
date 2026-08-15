@@ -12,11 +12,13 @@ import {
   Scene,
   ShadowGenerator,
   StandardMaterial,
+  Texture,
   TransformNode,
   Vector3,
   VertexData,
 } from "@babylonjs/core";
-import type { MissionDefinition, WeatherMode } from "./types";
+import { loadNairobiTerrain, type RealTerrainData } from "./RealTerrain";
+import type { GameSettings, MissionDefinition, TerrainSource, WeatherMode } from "./types";
 
 export interface HelicopterVisual {
   root: TransformNode;
@@ -30,7 +32,7 @@ const hash = (x: number, z: number) => {
   return value - Math.floor(value);
 };
 
-export const terrainHeight = (x: number, z: number) => {
+export const proceduralTerrainHeight = (x: number, z: number) => {
   const distanceToBase = Math.hypot(x, z - 120);
   const broad = Math.sin(x * 0.0014) * 54 + Math.cos(z * 0.0011) * 42;
   const ridges = Math.sin((x + z) * 0.0031) * 18 + Math.cos((x - z) * 0.0044) * 12;
@@ -39,6 +41,11 @@ export const terrainHeight = (x: number, z: number) => {
   const baseBlend = Math.min(1, Math.max(0, (distanceToBase - 280) / 520));
   return natural * baseBlend;
 };
+
+let activeTerrainSampler: ((x: number, z: number) => number) | null = null;
+
+export const terrainHeight = (x: number, z: number) =>
+  activeTerrainSampler?.(x, z) ?? proceduralTerrainHeight(x, z);
 
 const material = (scene: Scene, name: string, color: Color3, rough = 0.9) => {
   const result = new StandardMaterial(name, scene);
@@ -143,17 +150,42 @@ export class WorldBuilder {
   readonly ambient: HemisphericLight;
   readonly shadow: ShadowGenerator;
   readonly rain: ParticleSystem;
+  readonly terrainSource: TerrainSource;
+  readonly centreElevationMetres: number;
   weather: WeatherMode;
   timeOfDay: number;
   private elapsed = 0;
   private readonly skyMaterial: StandardMaterial;
   private readonly windVector = new Vector3();
 
-  constructor(
+  static async create(
+    scene: Scene,
+    mission: MissionDefinition,
+    highQuality: boolean,
+    settings: GameSettings,
+    onStatus?: (message: string) => void,
+  ) {
+    let realTerrain: RealTerrainData | null = null;
+    if (settings.realTerrain) {
+      onStatus?.("Streaming Nairobi elevation and map tiles…");
+      try {
+        realTerrain = await loadNairobiTerrain(settings);
+      } catch {
+        onStatus?.("Map service unavailable — procedural terrain active");
+      }
+    }
+    return new WorldBuilder(scene, mission, highQuality, realTerrain);
+  }
+
+  private constructor(
     private readonly scene: Scene,
     private readonly mission: MissionDefinition,
     highQuality: boolean,
+    private readonly realTerrain: RealTerrainData | null,
   ) {
+    activeTerrainSampler = realTerrain?.sampleHeight ?? null;
+    this.terrainSource = realTerrain?.source ?? "procedural";
+    this.centreElevationMetres = realTerrain?.centreElevationMetres ?? 0;
     this.weather = mission.weather;
     this.timeOfDay = mission.timeOfDay;
     scene.clearColor = new Color4(0.05, 0.09, 0.11, 1);
@@ -181,8 +213,8 @@ export class WorldBuilder {
     sky.isPickable = false;
 
     this.createTerrain(highQuality ? 112 : 78);
-    this.createWater();
-    this.createVegetation(highQuality ? 620 : 260);
+    if (!realTerrain) this.createWater();
+    this.createVegetation(realTerrain ? (highQuality ? 210 : 90) : highQuality ? 620 : 260);
     this.createOutposts();
     this.createBeacon();
     this.rain = this.createRain();
@@ -190,6 +222,13 @@ export class WorldBuilder {
   }
 
   get wind() { return this.windVector; }
+
+  get terrainLabel() {
+    if (this.terrainSource === "maptiler") return "MAPTILER NAIROBI";
+    if (this.terrainSource === "mapbox") return "MAPBOX NAIROBI";
+    if (this.terrainSource === "open") return "OPEN-DATA NAIROBI";
+    return "PROCEDURAL TERRAIN";
+  }
 
   update(delta: number, playerPosition: Vector3) {
     this.elapsed += delta;
@@ -210,15 +249,21 @@ export class WorldBuilder {
     const indices: number[] = [];
     const colors: number[] = [];
     const normals: number[] = [];
+    const uvs: number[] = [];
     for (let zIndex = 0; zIndex <= segments; zIndex += 1) {
       for (let xIndex = 0; xIndex <= segments; xIndex += 1) {
         const x = (xIndex / segments - 0.5) * size;
         const z = (zIndex / segments - 0.5) * size;
         const y = terrainHeight(x, z);
         positions.push(x, y, z);
-        const altitude = Math.max(0, Math.min(1, (y + 40) / 260));
-        const variation = hash(xIndex, zIndex) * 0.06;
-        colors.push(0.16 + altitude * 0.21 + variation, 0.24 + altitude * 0.17 + variation, 0.13 + altitude * 0.13, 1);
+        uvs.push(xIndex / segments, zIndex / segments);
+        if (this.realTerrain) {
+          colors.push(1, 1, 1, 1);
+        } else {
+          const altitude = Math.max(0, Math.min(1, (y + 40) / 260));
+          const variation = hash(xIndex, zIndex) * 0.06;
+          colors.push(0.16 + altitude * 0.21 + variation, 0.24 + altitude * 0.17 + variation, 0.13 + altitude * 0.13, 1);
+        }
       }
     }
     for (let zIndex = 0; zIndex < segments; zIndex += 1) {
@@ -235,9 +280,27 @@ export class WorldBuilder {
     data.indices = indices;
     data.normals = normals;
     data.colors = colors;
+    data.uvs = uvs;
     data.applyToMesh(terrain);
-    const terrainMaterial = material(this.scene, "terrain-material", new Color3(0.43, 0.55, 0.37));
+    const terrainMaterial = material(
+      this.scene,
+      "terrain-material",
+      this.realTerrain ? Color3.White() : new Color3(0.43, 0.55, 0.37),
+    );
     terrainMaterial.specularColor = Color3.Black();
+    if (this.realTerrain) {
+      const mapTexture = new DynamicTexture(
+        "nairobi-map-texture",
+        this.realTerrain.imageryCanvas,
+        this.scene,
+        true,
+        Texture.TRILINEAR_SAMPLINGMODE,
+      );
+      mapTexture.anisotropicFilteringLevel = 8;
+      mapTexture.update(true);
+      terrainMaterial.diffuseTexture = mapTexture;
+      terrainMaterial.emissiveColor = new Color3(0.055, 0.065, 0.05);
+    }
     terrain.material = terrainMaterial;
     terrain.receiveShadows = true;
     terrain.freezeWorldMatrix();

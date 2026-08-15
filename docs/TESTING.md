@@ -13,8 +13,9 @@ This runs:
 1. an isolated strict TypeScript check over the game and UI source;
 2. the production Vinext/Vite build and deployable-worker artifact validation;
 3. a server-rendered metadata smoke test;
-4. Node tests for career immutability/progression, mission transitions, and hard
-   landing damage.
+4. Node tests for career immutability/progression, mission transitions, hard
+   landing damage, Nairobi XYZ mapping, provider elevation decoding, and the
+   token-free real-terrain default.
 
 Lint separately with:
 
@@ -35,6 +36,7 @@ npm run lint
 | Co-op | Host/join in two browsers, pose smoothing, weapon events, disconnect |
 | Lifecycle | Background auto-pause, resize, pointer release, repeated sortie disposal |
 | PWA | Install prompt eligibility, reload update, offline cached shell |
+| Real terrain | Nairobi DEM alignment, MSL altitude, map attribution, provider fallback |
 | Accessibility | Keyboard menu navigation, focus visibility, reduced motion, live status |
 
 ## Known environment constraint

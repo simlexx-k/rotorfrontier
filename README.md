@@ -21,8 +21,10 @@ keyboard and mouse or a standard-layout game controller.
 - Custom 60 Hz fixed-step helicopter dynamics: collective, cyclic, anti-torque,
   rotor energy, translational lift, ground effect, wind, drag, fuel, component
   damage, hard landings, and optional stability assist
-- 8.2 km procedural battlespace with elevation, river, vegetation, buildings,
-  helipad, navigation beacons, shadowing, fog, rain, and continuous day/night light
+- 8.2 km georeferenced Nairobi theatre with streamed real-world elevation and map
+  imagery; a no-token AWS/OpenStreetMap source works immediately, MapTiler and
+  Mapbox satellite sources can be enabled locally, and procedural terrain remains
+  an offline/service-failure fallback
 - Three multi-stage operations: reconnaissance, armoured interdiction, and storm
   extraction, each with live objective tracking and after-action scoring
 - Autonomous hostile helicopters, moving armour, and guided SAM threats with
@@ -98,7 +100,7 @@ purpose-built and deterministic at a 60 Hz fixed step; Babylon handles rendering
 scene management, spatial effects, and GPU fallback.
 
 See [Architecture](docs/ARCHITECTURE.md), [Research and design basis](docs/RESEARCH.md),
-[real-world terrain research](docs/REAL_WORLD_TERRAIN.md), [3D asset licenses](docs/ASSET_LICENSES.md),
+[real-world terrain implementation](docs/REAL_WORLD_TERRAIN.md), [3D asset licenses](docs/ASSET_LICENSES.md),
 and [Testing](docs/TESTING.md) for implementation details, attribution, and tradeoffs.
 
 ## Browser baseline
@@ -111,7 +113,7 @@ The browser must permit WebRTC for co-op and IndexedDB for persistent career sav
 
 The first production milestone is implemented on the active development branch.
 Planned hardening includes TURN-backed matchmaking, authoritative shared AI state,
-additional aircraft, configurable bindings, spatial audio, terrain streaming,
+additional aircraft, configurable bindings, spatial audio, multi-LOD terrain streaming,
 mission authoring tools, automated GPU-device testing, and accessibility presets.
 
 ## Contributing and security
