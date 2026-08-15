@@ -1,108 +1,148 @@
-# vinext-starter
+# RotorFrontier
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+**A browser-native tactical helicopter flight and combat simulator.**
 
-## Prerequisites
+[Play the current production alpha](https://rotorfrontier.kiptookosgeisimon.chatgpt.site)
 
-- Node.js `>=22.13.0`
-- Linux with `flock`, `curl`, and GNU `timeout`
+RotorFrontier combines an approachable flight-assist layer with rotorcraft-inspired
+physics, open-world combat, mission-driven progression, adaptive weather, and
+two-player peer-to-peer co-op. It runs directly in a modern desktop browser with
+keyboard and mouse or a standard-layout game controller.
 
-## Sites Lifecycle
+> Production alpha: the complete first playable milestone is available, but flight
+> tuning, content volume, network relays, accessibility, and hardware coverage will
+> continue to evolve.
 
-The Sites lifecycle CLI runs the locked dependency install before returning this checkout. Edit the source under `app/`, then checkpoint when a coherent milestone is ready to inspect or share. The remote Sites builder runs `npm run build` against the pushed commit. Do not repeat install or build as a normal pre-checkpoint step.
+## Current feature set
 
-This starter does not use `wrangler.jsonc`.
+- A production-quality AH-64E Apache Guardian airframe with PBR materials,
+  high/performance LOD assets, animated source-model rotor blades, true-to-scale
+  dimensions, an interactive 3D hangar viewer, and a sourced aircraft dossier
+- Custom 60 Hz fixed-step helicopter dynamics: collective, cyclic, anti-torque,
+  rotor energy, translational lift, ground effect, wind, drag, fuel, component
+  damage, hard landings, and optional stability assist
+- 8.2 km georeferenced Nairobi theatre with streamed real-world elevation and map
+  imagery; a no-token AWS/OpenStreetMap source works immediately, MapTiler and
+  Mapbox satellite sources can be enabled locally, and procedural terrain remains
+  an offline/service-failure fallback
+- Three multi-stage operations: reconnaissance, armoured interdiction, and storm
+  extraction, each with live objective tracking and after-action scoring
+- Autonomous hostile helicopters, moving armour, and guided SAM threats with
+  patrol, pursuit, lead targeting, engagement envelopes, and damage states
+- M230 cannon, Hydra rockets, and target-locked Hellfire missiles with ammunition,
+  ballistics, homing, swept collision, bounded aim assistance, luminous projectile
+  streaks, rocket/missile exhaust, smoke trails, shockwaves, and sensor-driven target
+  acquisition with terrain masking, track quality/coasting, closure, and lead cues
+- A 60 Hz flight-data computer with TAS/ground-speed separation, attitude and load,
+  track/drift, torque and power margin, fuel endurance, waypoint bearing/range/ETE,
+  and explicit ground/hover/climb/descent/cruise modes
+- Combat UX with automatic helicopter-first lock/reacquisition, an all-hostiles radar,
+  screen/edge position markers, lock/health bars, weapon-readiness graphics,
+  hit/critical/takedown confirmations, falling helicopter wrecks, impact vignettes,
+  directional damage indicators, haptics, and tones
+- Persistent local career with credits, XP, ratings, sortie statistics, and five-tier
+  engine, armour, sensor, and stores upgrades
+- Two-player WebRTC co-op using a low-latency unreliable flight-state channel and a
+  reliable combat-event channel; no account or central game server required
+- Cockpit, chase, and stabilized cinematic cameras with focus-loss input release;
+  pointer lock; adaptive WebGPU/WebGL 2
+  rendering; FXAA, bloom, dynamic quality selection, and compressed Web Audio
+- Licensed sampled rotor, M230 cannon, and rocket recordings with RPM/load-responsive
+  filtering, modeled turbine and low-frequency layers, and dynamic-range control
+- Keyboard/mouse and W3C Gamepad API input with radial deadzones, standard mapping,
+  hot device switching, remappable sensitivity/inversion, and supported haptics
+- Installable PWA shell with network-first runtime caching and offline fallback
 
-`install:ci` is intentionally a single, non-retrying `npm ci`. It refuses a concurrent install for the same project, consumes a matching image-seeded npm cache with `--prefer-offline` while retaining registry fallback for a missing cache object, otherwise downloads and verifies the complete vinext tarball recorded in `package-lock.json`, limits npm to one socket, and terminates a stalled install. `build` applies a short timeout and then validates the Sites artifact. These helpers target Linux and use GNU `timeout`; they are not native macOS scripts.
+## Quick start
 
-Scripts that need writable project-scoped home, npm, XDG, and temporary paths use `scripts/sites-env.sh`. The `dev` and `start` scripts honor the caller's runtime environment and keep Wrangler logs inside the checkout. The generated `.sites-runtime/` directory is disposable and ignored by Git.
+Requirements: Node.js 22.13 or newer.
 
-## Included Shape
-
-- edit site code under `app/`
-- `app/chatgpt-auth.ts` provides optional dispatch-owned ChatGPT sign-in helpers
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/index.ts` reads the D1 binding from the Cloudflare Worker environment
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+npm ci
+npm run dev
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+Then open the URL printed by Vite. For a production verification pass:
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+```bash
+npm test
+```
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+`npm test` runs the isolated game typecheck, production build/artifact validation,
+rendered metadata test, and deterministic career/mission/flight-model tests.
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+## Controls
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+| Action | Keyboard and mouse | Standard gamepad |
+|---|---|---|
+| Move forward / backward | `W S` or `↑ ↓` | Left stick Y |
+| Move left / right | `A D` or `← →` | Left stick X |
+| Turn left / right | `Q E` | LB / RB |
+| Ascend / descend | `Space` / `C` | RT / LT |
+| Look | Captured mouse | Right stick |
+| M230 cannon | Left click / `F` | A / Cross |
+| Rocket or missile | Right click | B / Circle |
+| Cycle secondary weapon | `R` | X / Square |
+| Manual target override | Wheel, `N`, `M`, or `Tab` | D-pad up |
+| Change camera | `V` | Y / Triangle |
+| Toggle arcade flight assist | `H` | Left-stick click |
+| Pause | `P` / `Esc` | Menu / Options |
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+Click the flight view to capture the pointer. Browser and operating-system mappings
+can vary for non-standard controllers; the settings screen provides deadzone and
+axis inversion controls. Operations begin on the helipad at ground idle. Arcade
+flight assist is the default: hold `Space` or RT to climb, hold `C` or LT to descend,
+and release to capture a hover. Direction inputs command predictable aircraft-relative
+motion and the helicopter automatically levels and brakes when released. Toggle the
+assist with `H` or the left-stick button for persistent collective and unrestricted
+cyclic control.
 
-## Diagnostic Commands
+TADS automatically scans visible contacts, prioritizes hostile helicopters, builds
+the lock, and reacquires after a takedown. The tactical scope and edge markers show
+all detected enemy positions; target-cycle inputs remain a manual override.
 
-- `npm run install:ci`: perform the one bounded lockfile install
-- `npm run dev`: start the Vite/Vinext development server
-- `npm run build`: build and validate the deployable Sites artifact
-- `npm run start`: start the built Vinext application
-- `npm test`: build, validate, and verify the rendered development-preview metadata
-- `npm run validate:artifact`: recheck an existing artifact's manifest and ESM `default.fetch` export
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+## Co-op connection
 
-Use build and validation commands for targeted diagnosis after a remote failure, not as part of the normal checkpoint path.
+1. Both players select **Online co-op** from the briefing.
+2. The host creates and sends an invite code.
+3. The wingman pastes the invite, creates an answer, and sends it back.
+4. The host pastes the answer. When the status reads **connected**, both launch the
+   same operation.
 
-The timeout defaults can be overridden for a controlled canary with `SITES_INSTALL_TIMEOUT`, `SITES_INSTALL_KILL_AFTER`, `SITES_BUILD_TIMEOUT`, and `SITES_BUILD_KILL_AFTER`. A timeout fails the command; the helpers never retry an unchanged install or build.
+Session descriptions are exchanged manually so no identity or signaling backend is
+required. WebRTC encrypts the data connection. Public STUN discovery works for many
+networks; restrictive symmetric NAT or enterprise firewalls may require a future
+TURN relay.
 
-## Learn More
+## Architecture
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+The client is built with React 19, TypeScript, Vinext/Vite, Babylon.js 9, WebRTC,
+the Web Audio API, IndexedDB, and Zod packet/storage validation. The flight model is
+purpose-built and deterministic at a 60 Hz fixed step; Babylon handles rendering,
+scene management, spatial effects, and GPU fallback.
+
+See [Architecture](docs/ARCHITECTURE.md), [Research and design basis](docs/RESEARCH.md),
+[real-world terrain implementation](docs/REAL_WORLD_TERRAIN.md), [third-party asset licenses](docs/ASSET_LICENSES.md),
+and [Testing](docs/TESTING.md) for implementation details, attribution, and tradeoffs.
+
+## Browser baseline
+
+A recent Chromium, Firefox, or Safari desktop browser with WebGL 2 is required.
+WebGPU, controller vibration, and installability are progressive enhancements.
+The browser must permit WebRTC for co-op and IndexedDB for persistent career saves.
+
+## Project status
+
+The first production milestone is implemented on the active development branch.
+Planned hardening includes TURN-backed matchmaking, authoritative shared AI state,
+additional aircraft, configurable bindings, spatial audio, multi-LOD terrain streaming,
+mission authoring tools, automated GPU-device testing, and accessibility presets.
+
+## Contributing and security
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change. Security reports
+should follow [SECURITY.md](SECURITY.md). RotorFrontier is available under the
+[MIT License](LICENSE).
+
+The bundled AH-64E model and sampled audio are separately licensed third-party
+assets. See [third-party asset licenses](docs/ASSET_LICENSES.md) for attribution and terms.

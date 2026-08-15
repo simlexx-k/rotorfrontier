@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "app/game/**/*.ts",
+    "app/game/**/*.tsx",
+    "app/layout.tsx",
+    "app/page.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "db",
+    "examples",
+    "worker"
+  ]
+}
