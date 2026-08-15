@@ -12,7 +12,8 @@ available under the repository's MIT License.
 - Original model: [Sketchfab model page](https://sketchfab.com/3d-models/ah-64e-apache-guardian-9eb641f9179d413e87367ebd9b96347a)
 - License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
 - Downloaded: 2026-08-15, Sketchfab 1K GLB distribution
-- Bundled derivative: `public/models/ah-64e-guardian.glb`
+- Bundled derivatives: `public/models/ah-64e-guardian.glb` and
+  `public/models/ah-64e-guardian-lod.glb`
 
 ### Changes made
 
@@ -21,6 +22,11 @@ simplified, pruned, deduplicated, and stripped of unused attributes. Textures we
 resized to a 1,024-pixel maximum and converted to WebP. The optimized derivative is
 15.15 MB. Rotor-motion meshes, runtime scale normalization, and scene placement are
 implemented separately in RotorFrontier code.
+
+A 7.19 MB performance LOD was additionally generated for lower-memory and lower-core
+devices. It uses the same source, attribution, and license, with stronger geometry
+simplification and 256-pixel texture limits. Both quality tiers therefore display an
+Apache; the old procedural airframe is retained only as a load-failure safety fallback.
 
 No endorsement by the model creator, Boeing, the U.S. Army, or GE Aerospace is
 implied.

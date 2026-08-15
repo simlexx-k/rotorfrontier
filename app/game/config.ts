@@ -54,13 +54,13 @@ export const MISSIONS: MissionDefinition[] = [
   {
     id: "first-light",
     index: "01",
-    callsign: "FIRST LIGHT",
-    title: "Border reconnaissance",
-    summary: "Low-level insertion through the Kestrel valley. Confirm three signal sites and return below the radar envelope.",
+    callsign: "CLEAR HORIZON",
+    title: "Daylight reconnaissance",
+    summary: "Clear-day low-level insertion through the Kestrel valley. Confirm three signal sites and return below the radar envelope.",
     location: "Kestrel Valley · Sector 04",
     risk: "moderate",
-    timeOfDay: 6.4,
-    weather: "haze",
+    timeOfDay: 12.5,
+    weather: "clear",
     objective: "Reach the northern observation zone",
   },
   {

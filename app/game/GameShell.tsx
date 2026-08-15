@@ -10,6 +10,7 @@ import {
   upgradeCost,
 } from "./CareerStore";
 import { ACTIVE_AIRCRAFT, CONTROL_REFERENCE, DEFAULT_SETTINGS, MISSIONS } from "./config";
+import HangarViewer from "./HangarViewer";
 import type { GameRuntime } from "./GameRuntime";
 import { NetworkSession } from "./NetworkSession";
 import type {
@@ -469,6 +470,8 @@ export default function GameShell() {
               </div>
               <span className="aircraft-readiness"><i /> Combat ready</span>
             </header>
+
+            <HangarViewer />
 
             <div className="aircraft-dossier-grid">
               <div className="aircraft-spec-grid">

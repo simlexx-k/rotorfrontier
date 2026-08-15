@@ -15,6 +15,7 @@ import { createHelicopter as createFallbackHelicopter } from "./WorldBuilder";
 import type { HelicopterVisual } from "./WorldBuilder";
 
 const APACHE_MODEL_PATH = "/models/ah-64e-guardian.glb";
+const APACHE_LOD_MODEL_PATH = "/models/ah-64e-guardian-lod.glb";
 const APACHE_ROTOR_DIAMETER_METRES = 14.6;
 const APACHE_SOURCE_TO_FORWARD_YAW = -Math.PI / 2;
 const APACHE_MAIN_ROTOR_MESH_PREFIXES = [
@@ -23,6 +24,10 @@ const APACHE_MAIN_ROTOR_MESH_PREFIXES = [
   "mesh_647_",
   "mesh_658_",
 ] as const;
+
+export type PlayerHelicopterVisual = HelicopterVisual & {
+  assetTier: "high" | "low" | "procedural";
+};
 
 const createRotorMaterial = (
   scene: Scene,
@@ -118,8 +123,10 @@ const measureMeshes = (meshes: AbstractMesh[]) => {
 const createDetailedApache = async (
   scene: Scene,
   name: string,
-): Promise<HelicopterVisual> => {
-  const imported = await SceneLoader.ImportMeshAsync(null, "", APACHE_MODEL_PATH, scene);
+  highDetail: boolean,
+): Promise<PlayerHelicopterVisual> => {
+  const modelPath = highDetail ? APACHE_MODEL_PATH : APACHE_LOD_MODEL_PATH;
+  const imported = await SceneLoader.ImportMeshAsync(null, "", modelPath, scene);
   const root = new TransformNode(`${name}-root`, scene);
   const modelMount = new TransformNode(`${name}-model-mount`, scene);
   const centerMount = new TransformNode(`${name}-center-mount`, scene);
@@ -161,6 +168,7 @@ const createDetailedApache = async (
     rotor,
     tailRotor,
     shadowMeshes: [...shadowRoot, ...mainRotorBlades],
+    assetTier: highDetail ? "high" : "low",
   };
 };
 
@@ -168,11 +176,20 @@ export async function createPlayerHelicopter(
   scene: Scene,
   name: string,
   highDetail: boolean,
-): Promise<HelicopterVisual> {
-  if (!highDetail) return createFallbackHelicopter(scene, name);
+): Promise<PlayerHelicopterVisual> {
   try {
-    return await createDetailedApache(scene, name);
+    return await createDetailedApache(scene, name, highDetail);
   } catch {
-    return createFallbackHelicopter(scene, name);
+    if (highDetail) {
+      try {
+        return await createDetailedApache(scene, name, false);
+      } catch {
+        // Fall through to the always-available safety airframe.
+      }
+    }
+    return {
+      ...createFallbackHelicopter(scene, name),
+      assetTier: "procedural",
+    };
   }
 }

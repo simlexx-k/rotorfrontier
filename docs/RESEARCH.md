@@ -55,11 +55,11 @@ for browser delivery. The resulting 15.15 MB asset retains 32 PBR materials whil
 cutting the original download by about 78 percent. The runtime scales it against
 the published 14.6 m rotor diameter and adds lightweight rotor-motion effects.
 
-Decision: load the detailed asset asynchronously on the high-quality tier and keep
-the procedural helicopter as an immediate fallback for low-quality devices or an
-asset-load failure. Published AH-64E values provide readable context and presentation;
-the game's flight coefficients remain intentionally tuned for hybrid-realism combat
-and are not a certified or engineering-grade Apache simulation.
+Decision: load the full asset asynchronously on the high-quality tier and a separately
+optimized Apache LOD on the low-quality tier. The procedural helicopter remains only
+as an asset-load safety fallback. Published AH-64E values provide readable context
+and presentation; the game's flight coefficients remain intentionally tuned for
+hybrid-realism combat and are not a certified or engineering-grade Apache simulation.
 
 ## Input
 

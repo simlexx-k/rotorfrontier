@@ -12,7 +12,7 @@ import {
   WebGPUEngine,
 } from "@babylonjs/core";
 import { AISystem } from "./AISystem";
-import { createPlayerHelicopter } from "./AircraftFactory";
+import { createPlayerHelicopter, type PlayerHelicopterVisual } from "./AircraftFactory";
 import { AudioSystem } from "./AudioSystem";
 import { CombatSystem } from "./CombatSystem";
 import { FlightModel } from "./FlightModel";
@@ -41,7 +41,7 @@ export class GameRuntime {
   private scene: Scene | null = null;
   private camera: FreeCamera | null = null;
   private world: WorldBuilder | null = null;
-  private aircraft: HelicopterVisual | null = null;
+  private aircraft: PlayerHelicopterVisual | null = null;
   private remoteAircraft: HelicopterVisual | null = null;
   private remoteState: NetworkFlightState | null = null;
   private input: InputManager | null = null;
@@ -164,7 +164,7 @@ export class GameRuntime {
       window.addEventListener("resize", this.onResize);
       document.addEventListener("visibilitychange", this.onVisibilityChange);
       this.callbacks.onNotice(
-        `${this.engine.name.toUpperCase()} renderer · ${this.quality.toUpperCase()} quality`,
+        `${this.engine.name.toUpperCase()} · ${this.quality.toUpperCase()} · ${this.aircraft.assetTier === "procedural" ? "SAFETY AIRFRAME" : `AH-64E ${this.aircraft.assetTier.toUpperCase()} LOD`}`,
       );
     } catch (error) {
       const message =

@@ -55,12 +55,14 @@ WebGPU where available and falls back to WebGL 2. High quality enables 2K filter
 shadows, FXAA, bloom, and enhanced vegetation density; auto quality uses device
 memory and logical processor count as conservative hints.
 
-The player airframe uses an asynchronously loaded, web-optimized GLB on the high
-quality tier. Its imported bounds are normalized to the AH-64E's published rotor
-diameter, attached to the simulation root, and supplemented with inexpensive rotor
-blur meshes. Low-quality devices and asset-load failures use the existing procedural
-airframe, so a third-party model fetch cannot block a sortie. Asset authorship,
-license, and transformations are recorded in `docs/ASSET_LICENSES.md`.
+The player airframe uses asynchronously loaded, web-optimized GLBs. High quality
+loads the 15.15 MB presentation asset, while low quality loads a 7.19 MB performance
+LOD instead of reverting to the old primitive model. Imported bounds are normalized
+to the AH-64E's published rotor diameter, attached to the simulation root, and
+supplemented with rotor-motion meshes. The procedural airframe now appears only after
+an asset-load failure, so every normal quality tier presents an Apache. The same high
+detail asset powers an isolated interactive Babylon scene in the hangar. Asset
+authorship, license, and transformations are recorded in `docs/ASSET_LICENSES.md`.
 
 ## AI and combat
 

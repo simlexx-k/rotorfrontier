@@ -15,9 +15,9 @@ keyboard and mouse or a standard-layout game controller.
 
 ## Current feature set
 
-- A production-quality AH-64E Apache Guardian airframe with PBR materials, a
-  web-optimized 3D asset, animated rotor-motion effects, true-to-scale dimensions,
-  and an in-game aircraft dossier sourced from Boeing, the U.S. Army, and GE
+- A production-quality AH-64E Apache Guardian airframe with PBR materials,
+  high/performance LOD assets, animated rotor-motion effects, true-to-scale
+  dimensions, an interactive 3D hangar viewer, and a sourced aircraft dossier
 - Custom 60 Hz fixed-step helicopter dynamics: collective, cyclic, anti-torque,
   rotor energy, translational lift, ground effect, wind, drag, fuel, component
   damage, hard landings, and optional stability assist
@@ -98,8 +98,8 @@ purpose-built and deterministic at a 60 Hz fixed step; Babylon handles rendering
 scene management, spatial effects, and GPU fallback.
 
 See [Architecture](docs/ARCHITECTURE.md), [Research and design basis](docs/RESEARCH.md),
-[3D asset licenses](docs/ASSET_LICENSES.md), and [Testing](docs/TESTING.md) for
-implementation details, attribution, and tradeoffs.
+[real-world terrain research](docs/REAL_WORLD_TERRAIN.md), [3D asset licenses](docs/ASSET_LICENSES.md),
+and [Testing](docs/TESTING.md) for implementation details, attribution, and tradeoffs.
 
 ## Browser baseline
 

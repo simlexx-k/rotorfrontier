@@ -20,6 +20,11 @@ test("AH-64E dossier retains sourced specifications and attribution", () => {
   assert.match(ACTIVE_AIRCRAFT.modelCredit.href, /sketchfab\.com/);
 });
 
+test("default operation launches in clear daylight", () => {
+  assert.equal(MISSIONS[0].weather, "clear");
+  assert.ok(MISSIONS[0].timeOfDay >= 10 && MISSIONS[0].timeOfDay <= 15);
+});
+
 test("career upgrades are immutable and deduct the documented cost", () => {
   const upgraded = purchaseUpgrade(DEFAULT_CAREER, "engine");
   assert.ok(upgraded);

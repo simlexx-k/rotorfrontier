@@ -817,6 +817,131 @@ kbd {
   line-height: 1.55;
 }
 
+.hangar-viewer {
+  position: relative;
+  height: clamp(18rem, 38vw, 27rem);
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 50% 78%, rgba(104, 224, 211, 0.1), transparent 40%),
+    #03090b;
+  isolation: isolate;
+}
+
+.hangar-viewer canvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+  transition: opacity 240ms ease;
+}
+
+.hangar-viewer canvas:active { cursor: grabbing; }
+.hangar-viewer.status-loading canvas,
+.hangar-viewer.status-error canvas { opacity: 0.22; }
+
+.hangar-viewer::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(2, 8, 10, 0.86), transparent 24%, transparent 76%, rgba(2, 8, 10, 0.78)),
+    linear-gradient(0deg, rgba(2, 8, 10, 0.72), transparent 28%);
+}
+
+.hangar-viewer-grid {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.28;
+  background-image:
+    linear-gradient(rgba(104, 224, 211, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(104, 224, 211, 0.12) 1px, transparent 1px);
+  background-size: 3rem 3rem;
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+}
+
+.hangar-viewer-topline,
+.hangar-viewer-status,
+.hangar-viewer-designation {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  font-family: ui-monospace, monospace;
+  text-transform: uppercase;
+}
+
+.hangar-viewer-topline {
+  top: 1rem;
+  right: 1rem;
+  left: 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--cyan);
+  font-size: 0.54rem;
+  letter-spacing: 0.13em;
+}
+
+.hangar-viewer-topline strong { color: var(--muted); font-weight: 500; }
+
+.hangar-viewer-status {
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.42rem 0.58rem;
+  border: 1px solid rgba(201, 255, 77, 0.3);
+  background: rgba(3, 10, 11, 0.78);
+  color: var(--lime);
+  font-size: 0.53rem;
+  letter-spacing: 0.08em;
+  backdrop-filter: blur(6px);
+}
+
+.hangar-viewer-status i {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 11px var(--lime);
+  animation: status-pulse 1.25s ease-in-out infinite;
+}
+
+.status-fallback .hangar-viewer-status,
+.status-error .hangar-viewer-status { color: var(--amber); border-color: rgba(255, 193, 86, 0.42); }
+.status-fallback .hangar-viewer-status i,
+.status-error .hangar-viewer-status i { background: var(--amber); box-shadow: 0 0 11px var(--amber); }
+
+.hangar-viewer-designation {
+  right: 1.15rem;
+  bottom: 0.6rem;
+  display: grid;
+  justify-items: end;
+  color: rgba(237, 245, 241, 0.12);
+  line-height: 0.82;
+  letter-spacing: -0.07em;
+}
+
+.hangar-viewer-designation strong { font-size: clamp(3rem, 8vw, 6.6rem); }
+.hangar-viewer-designation span {
+  margin-top: 0.55rem;
+  color: rgba(104, 224, 211, 0.26);
+  font-size: 0.82rem;
+  letter-spacing: 0.42em;
+}
+
+@keyframes status-pulse {
+  50% { opacity: 0.35; transform: scale(0.72); }
+}
+
 .aircraft-readiness {
   align-self: start;
   display: flex;
@@ -1092,6 +1217,9 @@ select {
   .aircraft-readiness { grid-column: 1 / -1; justify-self: start; }
   .aircraft-sources { flex-direction: column; }
   .aircraft-sources nav { justify-content: flex-start; }
+  .hangar-viewer { height: 17rem; }
+  .hangar-viewer-topline strong { display: none; }
+  .hangar-viewer-designation strong { font-size: 3rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
