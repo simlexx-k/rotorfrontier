@@ -538,6 +538,26 @@ textarea:focus-visible {
 
 .assist-chip.active { border-color: var(--lime); color: var(--lime); }
 
+.takeoff-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 5.1rem;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 0.25rem;
+  min-width: min(35rem, calc(100vw - 2rem));
+  padding: 0.65rem 0.9rem;
+  background: rgba(3, 11, 13, 0.84);
+  border: 1px solid rgba(201, 255, 77, 0.42);
+  border-bottom: 2px solid var(--lime);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.takeoff-hint strong { color: var(--lime); font-size: 0.66rem; }
+.takeoff-hint span { color: #eafff9; font-size: 0.54rem; }
+
 .toast-stack {
   position: absolute;
   top: 5rem;
@@ -1556,6 +1576,8 @@ select:disabled { opacity: 0.45; }
   .target-data-grid { grid-template-columns: 1fr; }
   .target-bracket { width: 3.7rem; height: 3.7rem; }
   .weapon-chip, .assist-chip { min-width: 6rem; }
+  .takeoff-hint { bottom: 4.8rem; min-width: calc(100vw - 1rem); }
+  .takeoff-hint span { font-size: 0.48rem; }
   .hud-bottom .weapon-chip:nth-child(3),
   .hud-bottom .network-live { display: none; }
   .map-attribution { max-width: calc(100vw - 1rem); font-size: 0.42rem; }

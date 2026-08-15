@@ -71,23 +71,27 @@ rendered metadata test, and deterministic career/mission/flight-model tests.
 
 | Action | Keyboard and mouse | Standard gamepad |
 |---|---|---|
-| Cyclic pitch / roll | `W S` / `A D`, captured mouse | Left stick |
-| Anti-torque pedals | `Q E` | LB / RB |
-| Collective | `Shift` / `Ctrl` | RT / LT |
+| Move forward / backward | `W S` or `↑ ↓` | Left stick Y |
+| Move left / right | `A D` or `← →` | Left stick X |
+| Turn left / right | `Q E` | LB / RB |
+| Ascend / descend | `Space` / `C` | RT / LT |
 | Look | Captured mouse | Right stick |
-| M230 cannon | Left click / `Space` | A / Cross |
+| M230 cannon | Left click / `F` | A / Cross |
 | Rocket or missile | Right click | B / Circle |
 | Cycle secondary weapon | `R` | X / Square |
-| Cycle target | `Tab` | D-pad up |
-| Change camera | `C` | Y / Triangle |
-| Toggle hover assist | `H` | Left-stick click |
+| Cycle target | Wheel, `N`, `M`, or `Tab` | D-pad up |
+| Change camera | `V` | Y / Triangle |
+| Toggle arcade flight assist | `H` | Left-stick click |
 | Pause | `P` / `Esc` | Menu / Options |
 
 Click the flight view to capture the pointer. Browser and operating-system mappings
 can vary for non-standard controllers; the settings screen provides deadzone and
-axis inversion controls. Operations begin on the helipad at ground idle. Hold
-`Shift` or RT to raise collective through liftoff, release to retain the setting,
-and use `Ctrl` or LT to lower collective.
+axis inversion controls. Operations begin on the helipad at ground idle. Arcade
+flight assist is the default: hold `Space` or RT to climb, hold `C` or LT to descend,
+and release to capture a hover. Direction inputs command predictable aircraft-relative
+motion and the helicopter automatically levels and brakes when released. Toggle the
+assist with `H` or the left-stick button for persistent collective and unrestricted
+cyclic control.
 
 ## Co-op connection
 

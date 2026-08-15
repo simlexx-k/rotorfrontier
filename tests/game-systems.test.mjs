@@ -12,7 +12,11 @@ import {
   FLIGHT_GROUND_CLEARANCE_METRES,
   FlightModel,
 } from "../app/game/FlightModel.ts";
-import { mapDeviceCyclic, mapDigitalCyclic } from "../app/game/InputManager.ts";
+import {
+  mapDeviceCyclic,
+  mapDigitalCollective,
+  mapDigitalCyclic,
+} from "../app/game/InputManager.ts";
 import { MissionDirector } from "../app/game/MissionDirector.ts";
 import {
   decodeTerrainRgbHeight,
@@ -61,6 +65,9 @@ test("keyboard, mouse and gamepad cyclic axes map to aircraft-relative motion", 
   assert.deepEqual(mapDigitalCyclic(false, false, false, true), { pitch: 0, roll: -1 });
   assert.deepEqual(mapDeviceCyclic(0.8, -0.6, false), { pitch: 0.6, roll: -0.8 });
   assert.deepEqual(mapDeviceCyclic(0.8, -0.6, true), { pitch: -0.6, roll: -0.8 });
+  assert.equal(mapDigitalCollective(true, false), 1);
+  assert.equal(mapDigitalCollective(false, true), -1);
+  assert.equal(mapDigitalCollective(true, true), 0);
 });
 
 test("Nairobi real terrain is the token-free default and decodes provider elevations", () => {
@@ -169,17 +176,17 @@ test("aircraft starts settled on Nairobi ground without sinking or taking damage
   assert.equal(model.engine, 100);
 });
 
-test("collective authority lifts the aircraft from Nairobi elevation", () => {
+test("hold-to-ascend lifts from Nairobi elevation and release captures a hover", () => {
   const ground = 1_700;
   const model = new FlightModel(DEFAULT_SETTINGS);
   model.position.set(0, ground + FLIGHT_GROUND_CLEARANCE_METRES, 120);
-  simulate(model, 0.25, controls({ collective: 1 }), ground);
-  simulate(model, 1.5, controls(), ground);
+  simulate(model, 0.5, controls({ collective: 1 }), ground);
+  simulate(model, 3, controls(), ground);
   assert.ok(
-    model.position.y > ground + FLIGHT_GROUND_CLEARANCE_METRES + 1.5,
-    "holding Shift or RT should produce a positive climb",
+    model.position.y > ground + FLIGHT_GROUND_CLEARANCE_METRES + 2.5,
+    "holding Space or RT should produce a prompt positive climb",
   );
-  assert.ok(model.velocity.y > 0);
+  assert.ok(Math.abs(model.velocity.y) < 0.35, "releasing ascend should capture a hover");
 });
 
 test("assisted cyclic produces forward, backward and right translation", () => {
@@ -210,6 +217,32 @@ test("assisted cyclic produces forward, backward and right translation", () => {
   const right = Vector3.Right().applyRotationQuaternion(rightModel.rotation);
   simulate(rightModel, 2, controls(mapDigitalCyclic(false, false, false, true)), ground);
   assert.ok(Vector3.Dot(rightModel.position.subtract(rightStart), right) > 4);
+});
+
+test("arcade assist automatically levels and brakes after movement input", () => {
+  const ground = 1_700;
+  const model = new FlightModel(DEFAULT_SETTINGS);
+  model.position.set(0, ground + 20, 120);
+  simulate(model, 2, controls({ pitch: 1 }), ground);
+  const commandedSpeed = Math.hypot(model.velocity.x, model.velocity.z);
+  simulate(model, 2, controls(), ground);
+  const releasedSpeed = Math.hypot(model.velocity.x, model.velocity.z);
+
+  assert.ok(commandedSpeed > 20, "forward input should build useful mission speed");
+  assert.ok(releasedSpeed < commandedSpeed * 0.2, "neutral input should brake horizontal motion");
+  assert.ok(Math.abs(model.pitch) < 0.02, "neutral input should return the aircraft to level");
+});
+
+test("advanced mode retains persistent collective authority", () => {
+  const model = new FlightModel(DEFAULT_SETTINGS);
+  model.hoverAssist = false;
+  const initialCollective = model.collective;
+  simulate(model, 0.5, controls({ collective: 1 }), 0);
+  const raisedCollective = model.collective;
+  simulate(model, 1, controls(), 0);
+
+  assert.ok(raisedCollective > initialCollective + 0.2);
+  assert.ok(Math.abs(model.collective - raisedCollective) < 0.000_001);
 });
 
 test("terrain sampler prevents penetration while crossing rising ground", () => {

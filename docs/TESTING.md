@@ -14,8 +14,9 @@ This runs:
 2. the production Vinext/Vite build and deployable-worker artifact validation;
 3. a server-rendered metadata smoke test;
 4. Node tests for career immutability/progression, mission transitions, hard
-   landing damage, stable ground start, Nairobi-altitude liftoff, directional cyclic
-   response, terrain non-penetration, input-axis mapping, Nairobi XYZ/provider
+   landing damage, stable ground start, hold-to-command Nairobi-altitude liftoff,
+   hover capture, assisted directional response and braking, advanced persistent
+   collective, terrain non-penetration, input-axis mapping, Nairobi XYZ/provider
    decoding, Apache rotor/orientation assets, audio delivery, attribution, the
    token-free real-terrain default, swept projectile collision, intercept solutions,
    terrain masking, sensor dwell/lock/coast behavior, and flight-data/navigation
@@ -43,7 +44,7 @@ npm run lint
 | Lifecycle | Background auto-pause, resize, pointer release, repeated sortie disposal |
 | PWA | Install prompt eligibility, reload update, offline cached shell |
 | Real terrain | Nairobi DEM alignment, MSL altitude, map attribution, provider fallback |
-| Flight regression | Ground spawn, collective liftoff, all cyclic directions, slope contact |
+| Flight regression | Ground spawn, Space/RT liftoff, hover capture, WASD/stick translation, auto-brake, advanced collective, slope contact |
 | Audio | Seamless rotor loop, RPM/load response, sustained M230 fire, Hydra/Hellfire launch |
 | Accessibility | Keyboard menu navigation, focus visibility, reduced motion, live status |
 

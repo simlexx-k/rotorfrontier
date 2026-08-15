@@ -21,6 +21,9 @@ export const mapDigitalCyclic = (
   roll: Number(left) - Number(right),
 });
 
+export const mapDigitalCollective = (ascend: boolean, descend: boolean) =>
+  clamp(Number(ascend) - Number(descend));
+
 export const mapDeviceCyclic = (horizontal: number, vertical: number, invertY: boolean) => ({
   pitch: clamp(vertical * (invertY ? 1 : -1)),
   roll: clamp(-horizontal),
@@ -34,14 +37,17 @@ export class InputManager {
   private mouseDeltaX = 0;
   private mouseDeltaY = 0;
   private lastDevice: InputDevice = "keyboard-mouse";
+  private assistEnabled: boolean;
 
   constructor(private readonly canvas: HTMLCanvasElement, private readonly settings: GameSettings) {
+    this.assistEnabled = settings.flightAssist;
     window.addEventListener("keydown", this.onKeyDown, { passive: false });
     window.addEventListener("keyup", this.onKeyUp);
     window.addEventListener("mousemove", this.onMouseMove);
     canvas.addEventListener("mousedown", this.onMouseDown);
     window.addEventListener("mouseup", this.onMouseUp);
     canvas.addEventListener("contextmenu", this.preventContextMenu);
+    canvas.addEventListener("wheel", this.onWheel, { passive: false });
   }
 
   dispose() {
@@ -51,35 +57,44 @@ export class InputManager {
     this.canvas.removeEventListener("mousedown", this.onMouseDown);
     window.removeEventListener("mouseup", this.onMouseUp);
     this.canvas.removeEventListener("contextmenu", this.preventContextMenu);
+    this.canvas.removeEventListener("wheel", this.onWheel);
   }
 
   read(): ControlFrame {
     const gamepad = this.getGamepad();
     const zone = this.settings.controllerDeadzone;
     const keyboardCyclic = mapDigitalCyclic(
-      this.down("KeyW"),
-      this.down("KeyS"),
-      this.down("KeyA"),
-      this.down("KeyD"),
+      this.down("KeyW") || this.down("ArrowUp"),
+      this.down("KeyS") || this.down("ArrowDown"),
+      this.down("KeyA") || this.down("ArrowLeft"),
+      this.down("KeyD") || this.down("ArrowRight"),
     );
     let pitch = keyboardCyclic.pitch;
     let roll = keyboardCyclic.roll;
     let yaw = (this.down("KeyE") ? 1 : 0) - (this.down("KeyQ") ? 1 : 0);
-    let collective = (this.down("ShiftLeft") || this.down("ShiftRight") ? 1 : 0) - (this.down("ControlLeft") || this.down("ControlRight") ? 1 : 0);
+    let collective = mapDigitalCollective(
+      this.down("Space") || this.down("ShiftLeft") || this.down("ShiftRight"),
+      this.down("KeyC") || this.down("ControlLeft") || this.down("ControlRight"),
+    );
     let lookX = 0;
     let lookY = 0;
-    let firePrimary = this.down("Space") || this.mouseButtons.has(0);
+    let firePrimary = this.down("KeyF") || this.mouseButtons.has(0);
     let fireSecondary = this.mouseButtons.has(2);
 
     if (document.pointerLockElement === this.canvas) {
       const scale = this.settings.mouseSensitivity * 0.018;
-      const pointerCyclic = mapDeviceCyclic(
-        this.mouseDeltaX * scale,
-        this.mouseDeltaY * scale,
-        this.settings.invertY,
-      );
-      roll = clamp(roll + pointerCyclic.roll);
-      pitch = clamp(pitch + pointerCyclic.pitch);
+      if (this.assistEnabled) {
+        lookX = clamp(this.mouseDeltaX * scale * 0.72);
+        lookY = clamp(this.mouseDeltaY * scale * (this.settings.invertY ? -0.72 : 0.72));
+      } else {
+        const pointerCyclic = mapDeviceCyclic(
+          this.mouseDeltaX * scale,
+          this.mouseDeltaY * scale,
+          this.settings.invertY,
+        );
+        roll = clamp(roll + pointerCyclic.roll);
+        pitch = clamp(pitch + pointerCyclic.pitch);
+      }
       if (Math.abs(this.mouseDeltaX) + Math.abs(this.mouseDeltaY) > 0.1) this.lastDevice = "keyboard-mouse";
     }
 
@@ -117,6 +132,10 @@ export class InputManager {
     return active;
   }
 
+  setFlightAssist(enabled: boolean) {
+    this.assistEnabled = enabled;
+  }
+
   async pulse(strong = 0.5, weak = 0.25, duration = 90) {
     const gamepad = this.getGamepad();
     try {
@@ -147,13 +166,13 @@ export class InputManager {
   private down(code: string) { return this.keys.has(code); }
 
   private onKeyDown = (event: KeyboardEvent) => {
-    const controlCodes = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE", "Space", "ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "KeyC", "KeyH", "KeyP", "Escape", "Tab"]);
+    const controlCodes = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyQ", "KeyE", "Space", "ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "KeyC", "KeyF", "KeyH", "KeyN", "KeyM", "KeyP", "KeyV", "Escape", "Tab"]);
     if (controlCodes.has(event.code)) event.preventDefault();
     if (!event.repeat) {
-      if (event.code === "KeyC") this.pressed.add("camera");
+      if (event.code === "KeyV") this.pressed.add("camera");
       if (event.code === "KeyH") this.pressed.add("hover");
       if (event.code === "KeyP" || event.code === "Escape") this.pressed.add("pause");
-      if (event.code === "Tab") this.pressed.add("target");
+      if (event.code === "Tab" || event.code === "KeyN" || event.code === "KeyM") this.pressed.add("target");
       if (event.code === "KeyR") this.pressed.add("weapon");
     }
     this.keys.add(event.code);
@@ -172,5 +191,10 @@ export class InputManager {
     if (document.pointerLockElement !== this.canvas) void this.canvas.requestPointerLock();
   };
   private onMouseUp = (event: MouseEvent) => { this.mouseButtons.delete(event.button); };
+  private onWheel = (event: WheelEvent) => {
+    event.preventDefault();
+    if (Math.abs(event.deltaY) > 0.5) this.pressed.add("target");
+    this.lastDevice = "keyboard-mouse";
+  };
   private preventContextMenu = (event: Event) => event.preventDefault();
 }

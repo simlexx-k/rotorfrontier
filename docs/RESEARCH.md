@@ -21,6 +21,20 @@ rotor-energy, density, translational-lift, and ground-effect terms. A blade-elem
 or free-wake model would be expensive and poorly matched to a browser action game;
 the documented simplification is deliberate.
 
+### Accessible action-flight control benchmark
+
+The current CrazyGames Helicopter Flight Simulator control reference uses direct
+movement on WASD or the arrow keys, Q/E turning, hold-to-ascend on Space, and
+hold-to-descend on C. Weapons and target selection are kept separate from flight.
+
+- [CrazyGames: Helicopter Flight Simulator](https://www.crazygames.com/game/helicopter-flight-simulator)
+
+Decision: make that immediately readable control grammar RotorFrontier's default,
+including Space/C vertical commands, direct aircraft-relative movement, automatic
+levelling, hover capture, and braking. Mouse movement controls the view in this mode.
+The existing persistent-collective and direct-cyclic behavior remains available as
+the advanced mode toggled with H or the controller's left-stick button.
+
 ## Target acquisition and flight data
 
 Army references describe the Longbow weapon system as supporting automatic target

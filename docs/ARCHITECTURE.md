@@ -42,7 +42,10 @@ The custom flight model integrates:
 - density, translational-lift, and near-ground multipliers;
 - quadratic air drag, wind coupling, gravity, and rotor-disc tilt translation;
 - terrain contact, impact energy, airframe damage, and power degradation;
-- optional angle-command stability assistance for an accessible hybrid-realism mode.
+- default velocity-command flight assistance with hold-to-climb vertical control,
+  hover capture, automatic levelling, and automatic horizontal braking;
+- a runtime-toggleable advanced mode retaining persistent collective, direct cyclic,
+  aerodynamic translation, and slower anti-torque response.
 
 This is a game flight model, not a certified engineering simulator. Coefficients are
 tuned for readable handling and mission pacing while preserving important control

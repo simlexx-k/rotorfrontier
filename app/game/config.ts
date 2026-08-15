@@ -102,16 +102,16 @@ export const DEFAULT_SETTINGS: GameSettings = {
 };
 
 export const CONTROL_REFERENCE = [
-  ["Cyclic pitch", "W / S · Left stick Y"],
-  ["Cyclic roll", "A / D · Left stick X"],
-  ["Anti-torque pedals", "Q / E · LB / RB"],
-  ["Collective raise / lower", "Shift / Ctrl · RT / LT"],
-  ["Primary weapon", "Left click / Space · A"],
+  ["Move forward / backward", "W / S or ↑ / ↓ · Left stick Y"],
+  ["Move left / right", "A / D or ← / → · Left stick X"],
+  ["Turn left / right", "Q / E · LB / RB"],
+  ["Ascend / descend", "Space / C · RT / LT"],
+  ["Primary weapon", "Left click / F · A"],
   ["Secondary weapon", "Right click · B"],
   ["Cycle secondary", "R · X"],
-  ["Cycle target", "Tab · D-pad up"],
-  ["Change camera", "C · Y"],
-  ["Hover assist", "H · Left stick click"],
+  ["Cycle target", "Wheel / N / M / Tab · D-pad up"],
+  ["Change camera", "V · Y"],
+  ["Arcade flight assist", "H · Left stick click"],
   ["Pause", "P / Esc · Menu"],
   ["Fullscreen", "F11"],
 ] as const;

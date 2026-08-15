@@ -290,8 +290,9 @@ export class GameRuntime {
     }
     if (this.input.consume("hover")) {
       this.flight.hoverAssist = !this.flight.hoverAssist;
+      this.input.setFlightAssist(this.flight.hoverAssist);
       this.callbacks.onNotice(
-        `Hover assist ${this.flight.hoverAssist ? "engaged" : "disengaged"}`,
+        `Arcade flight assist ${this.flight.hoverAssist ? "engaged" : "disengaged"}`,
       );
     }
 

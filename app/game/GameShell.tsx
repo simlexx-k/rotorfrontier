@@ -239,7 +239,7 @@ export default function GameShell() {
       runtimeRef.current = runtime;
       await runtime.initialize();
       setPhase("playing");
-      pushNotice("On skids · hold Shift or RT to raise collective");
+      pushNotice("On skids · Space / RT ascend · WASD / left stick move");
       void canvas.requestPointerLock();
     } catch {
       runtimeRef.current?.dispose();
@@ -563,6 +563,13 @@ export default function GameShell() {
               </div>
             ) : null}
 
+            {telemetry.flightData.mode === "ground" && telemetry.hoverAssist ? (
+              <div className="takeoff-hint" aria-live="polite">
+                <strong>Ready for takeoff</strong>
+                <span>SPACE / RT ASCEND · WASD / LEFT STICK MOVE · Q/E / BUMPERS TURN</span>
+              </div>
+            ) : null}
+
             <div className="hud-bottom">
               <div className="weapon-chip">M230 · {telemetry.cannonAmmo}</div>
               <div className="weapon-chip active-weapon">{telemetry.selectedWeapon} · {secondaryAmmo}</div>
@@ -570,7 +577,7 @@ export default function GameShell() {
               <div className="weapon-chip">K {telemetry.kills} · {telemetry.score.toLocaleString()} PTS</div>
               {telemetry.networkStatus === "connected" ? <div className="weapon-chip network-live">WINGMAN · LIVE</div> : null}
               <div className={`assist-chip ${telemetry.hoverAssist ? "active" : ""}`}>
-                Hover assist {telemetry.hoverAssist ? "ON" : "OFF"}
+                Arcade assist {telemetry.hoverAssist ? "ON" : "OFF"}
               </div>
             </div>
 
@@ -625,9 +632,11 @@ export default function GameShell() {
           <p className="modal-copy">
             Click the flight view to capture the mouse. Xbox, PlayStation and
             standard-layout controllers are detected automatically, with radial
-            deadzone filtering and supported haptic feedback. The aircraft starts
-            settled on the Nairobi helipad: hold Shift or RT to raise collective
-            through liftoff, release it to hold the setting, and use Ctrl or LT to lower it.
+            deadzone filtering and supported haptic feedback. In the default arcade
+            assist mode, hold Space or RT to ascend and C or LT to descend; releasing
+            either captures a hover. WASD, arrow keys or the left stick command direct
+            movement, with automatic levelling and braking. Press H or the left-stick
+            button to toggle the advanced persistent-collective flight model.
           </p>
           <div className="controls-grid">
             {CONTROL_REFERENCE.map(([label, binding]) => (
@@ -739,7 +748,7 @@ export default function GameShell() {
             <RangeSetting label="Mouse sensitivity" value={settings.mouseSensitivity} min={0.2} max={1.5} step={0.01} onChange={(value) => updateSetting("mouseSensitivity", value)} />
             <RangeSetting label="Controller deadzone" value={settings.controllerDeadzone} min={0.04} max={0.3} step={0.01} onChange={(value) => updateSetting("controllerDeadzone", value)} />
             <RangeSetting label="Master volume" value={settings.masterVolume} min={0} max={1} step={0.01} onChange={(value) => updateSetting("masterVolume", value)} />
-            <ToggleSetting label="Flight stability assist" checked={settings.flightAssist} onChange={(value) => updateSetting("flightAssist", value)} />
+            <ToggleSetting label="Arcade flight assist" checked={settings.flightAssist} onChange={(value) => updateSetting("flightAssist", value)} />
             <ToggleSetting label="Invert cyclic Y axis" checked={settings.invertY} onChange={(value) => updateSetting("invertY", value)} />
             <ToggleSetting label="Stream real Nairobi terrain" checked={settings.realTerrain} onChange={(value) => updateSetting("realTerrain", value)} />
             <label className="setting-row">
